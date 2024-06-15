@@ -1,0 +1,666 @@
+#  Plug camera into usb port and cd to directory
+# ===============================================
+#
+# Ubuntu disks (gnome-diskutility 42.0 & Udisks 2.94)gives the following:
+#	Model -		OLYMPUS E-30(1.00)
+#	Serial No -	G68508673
+#	Mounted at -	/media/$USER/disk
+#	Device -	/dev/sde1
+
+lsusb
+#	Bus 002 Device 002: ID 0764:0118 Olympus Optical Co.,Ltd/Mju Mini Digital/Mju Digital 500 camera/Stylus 850 SW
+lsusb -vd 0764:0118
+#	id Vendor -	0x0764 Olympus Optical Co., Ltd
+#	id Product -	0x0118 Mju Mini Digital/Mju Digital 500 camera/Stylus 850 SW
+#	Manufacturer -	1 OLYMPUS
+#	Product -	2 E-30
+#	Serial -	3 G68508673
+# Where -v = increase verbosity (show descriptors) and -d vendor:[product] shows only specified devices
+df 
+# Show information about the file system on which each FILE resides,
+or all file systems by default.
+# /dev/sde1        3938272        32   3938240   1% /media/$USER/disk
+df /dev/sde1 --output
+# Filesystem     Type Inodes IUsed IFree IUse% 1K-blocks  Used   Avail Use% File      Mounted on
+# /dev/sde1      vfat      0     0     0     -   3938272    32 3938240   1% /dev/sde1 /media/$USER/disk
+df /dev/sde1 --output=target
+# Mounted on
+# /media/$USER/disk
+# Where --output[=FIELD_LIST]  use the output format defined by FIELD_LIST, or print all fields if FIELD_LIST is omitted.
+lsblk
+# List information about block devices.
+lsblk /dev/sde
+# NAME   MAJ:MIN RM  SIZE RO TYPE MOUNTPOINTS
+# sde      8:64   1  3.8G  0 disk
+# └─sde1   8:65   1  3.8G  0 part /media/$USER/disk
+lsblk -PO /dev/sde
+# NAME="sde" KNAME="sde" PATH="/dev/sde" MAJ:MIN="8:64" FSAVAIL="" FSSIZE="" FSTYPE="" FSUSED="" FSUSE%="" FSROOTS="" FSVER="" MOUNTPOINT="" MOUNTPOINTS="" LABEL="" UUID="" PTUUID="" PTTYPE="dos" PARTTYPE="" PARTTYPENAME="" PARTLABEL="" PARTUUID="" PARTFLAGS="" RA="128" RO="0" RM="1" HOTPLUG="1" MODEL="E-30" SERIAL="G68508673" SIZE="3.8G" STATE="running" OWNER="root" GROUP="disk" MODE="brw-rw----" ALIGNMENT="0" MIN-IO="512" OPT-IO="0" PHY-SEC="512" LOG-SEC="512" ROTA="1" SCHED="mq-deadline" RQ-SIZE="2" TYPE="disk" DISC-ALN="0" DISC-GRAN="0B" DISC-MAX="0B" DISC-ZERO="0" WSAME="0B" WWN="" RAND="1" PKNAME="" HCTL="10:0:0:0" TRAN="usb" SUBSYSTEMS="block:scsi:usb:pci" REV="1.00" VENDOR="OLYMPUS " ZONED="none" DAX="0"
+# NAME="sde1" KNAME="sde1" PATH="/dev/sde1" MAJ:MIN="8:65" FSAVAIL="3.8G" FSSIZE="3.8G" FSTYPE="vfat" FSUSED="32K" FSUSE%="0%" FSROOTS="/" FSVER="FAT32" MOUNTPOINT="/media/$USER/disk" MOUNTPOINTS="/media/$USER/disk" LABEL="" UUID="" PTUUID="" PTTYPE="dos" PARTTYPE="0xc" PARTTYPENAME="W95 FAT32 (LBA)" PARTLABEL="" PARTUUID="" PARTFLAGS="0x80" RA="128" RO="0" RM="1" HOTPLUG="1" MODEL="" SERIAL="" SIZE="3.8G" STATE="" OWNER="root" GROUP="disk" MODE="brw-rw----" ALIGNMENT="0" MIN-IO="512" OPT-IO="0" PHY-SEC="512" LOG-SEC="512" ROTA="1" SCHED="mq-deadline" RQ-SIZE="2" TYPE="part" DISC-ALN="0" DISC-GRAN="0B" DISC-MAX="0B" DISC-ZERO="0" WSAME="0B" WWN="" RAND="1" PKNAME="sde" HCTL="" TRAN="" SUBSYSTEMS="block:scsi:usb:pci" REV="" VENDOR="" ZONED="none" DAX="0"
+# where -P --pairs produces output in the form of key="value" pairs ans -o --output-all outputs all available columns.
+findmnt
+# Find a (mounted) filesystem.
+findmnt /dev/sde1
+# /media/$USER/disk /dev/sde1 vfat   rw,nosuid,nodev,relatime,uid=1000,gid=1000,fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,showexec,utf8,flush,errors=remount-ro
+lshw
+# list hardware
+sudo lshw -short | grep E-30
+# /0/100/13.2/1/2            scsi10      storage        E-30
+# /0/100/13.2/1/2/0.0.0      /dev/sde    disk           4034MB E-30
+
+# as the device has been automounted by udev
+udevadm info /dev/sde1
+# P: /devices/pci0000:00/0000:00:13.2/usb3/3-2/3-2:1.0/host10/target10:0:0/10:0:0:0/block/sde/sde1
+# N: sde1
+# L: 0
+# S: disk/by-path/pci-0000:00:13.2-usb-0:2:1.0-scsi-0:0:0:0-part1
+# S: disk/by-id/usb-OLYMPUS_E-30_G68508673-0:0-part1
+# E: DEVPATH=/devices/pci0000:00/0000:00:13.2/usb3/3-2/3-2:1.0/host10/target10:0:0/10:0:0:0/block/sde/sde1
+# E: DEVNAME=/dev/sde1
+# E: DEVTYPE=partition
+# E: DISKSEQ=63
+# E: PARTN=1
+# E: MAJOR=8
+# E: MINOR=65
+# E: SUBSYSTEM=block
+# E: USEC_INITIALIZED=2347770006
+# E: ID_VENDOR=OLYMPUS
+# E: ID_VENDOR_ENC=OLYMPUS\x20
+# E: ID_VENDOR_ID=07b4
+# E: ID_MODEL=E-30
+# E: ID_MODEL_ENC=E-30\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20
+# E: ID_MODEL_ID=0118
+# E: ID_REVISION=1.00
+# E: ID_SERIAL=OLYMPUS_E-30_G68508673-0:0
+# E: ID_SERIAL_SHORT=G68508673
+# E: ID_TYPE=disk
+# E: ID_INSTANCE=0:0
+# E: ID_BUS=usb
+# E: ID_USB_INTERFACES=:080650:
+# E: ID_USB_INTERFACE_NUM=00
+# E: ID_USB_DRIVER=usb-storage
+# E: ID_PATH=pci-0000:00:13.2-usb-0:2:1.0-scsi-0:0:0:0
+# E: ID_PATH_TAG=pci-0000_00_13_2-usb-0_2_1_0-scsi-0_0_0_0
+# E: ID_PART_TABLE_TYPE=dos
+# E: ID_FS_VERSION=FAT32
+# E: ID_FS_TYPE=vfat
+# E: ID_FS_USAGE=filesystem
+# E: ID_PART_ENTRY_SCHEME=dos
+# E: ID_PART_ENTRY_TYPE=0xc
+# E: ID_PART_ENTRY_FLAGS=0x80
+# E: ID_PART_ENTRY_NUMBER=1
+# E: ID_PART_ENTRY_OFFSET=28
+# E: ID_PART_ENTRY_SIZE=7878500
+# E: ID_PART_ENTRY_DISK=8:64
+# E: DEVLINKS=/dev/disk/by-path/pci-0000:00:13.2-usb-0:2:1.0-scsi-0:0:0:0-part1 /dev/disk/by-id/usb-OLYMPUS_E-30_G68508673-0:0-part1
+# E: TAGS=:systemd:
+# E: CURRENT_TAGS=:systemd:
+udevadm info /dev/sd* | grep OLYMPUS
+# S: disk/by-id/usb-OLYMPUS_E-30_G68508673-0:0
+# E: ID_VENDOR=OLYMPUS
+# E: ID_VENDOR_ENC=OLYMPUS\x20
+# E: ID_SERIAL=OLYMPUS_E-30_G68508673-0:0
+# E: DEVLINKS=/dev/disk/by-path/pci-0000:00:13.2-usb-0:2:1.0-scsi-0:0:0:0 /dev/disk/by-id/usb-OLYMPUS_E-30_G68508673-0:0
+# S: disk/by-id/usb-OLYMPUS_E-30_G68508673-0:0-part1
+# E: ID_VENDOR=OLYMPUS
+# E: ID_VENDOR_ENC=OLYMPUS\x20
+# E: ID_SERIAL=OLYMPUS_E-30_G68508673-0:0
+# E: DEVLINKS=/dev/disk/by-id/usb-OLYMPUS_E-30_G68508673-0:0-part1 /dev/disk/by-path/pci-0000:00:13.2-usb-0:2:1.0-scsi-0:0:0:0-part1
+
+# *******************************
+
+ls /dev/disk/*
+# Card has no UUID's or label. Path changes with usb port.
+# After adding a label "OLY_E-30" to partition 1 of the compact flash card with disks (gnome-disk-utility)
+
+ls -l /dev/disk/by-label/OLY_E-30
+# lrwxrwxrwx 1 root root 10 Apr  1 10:25 /dev/disk/by-label/OLY_E-30 -> ../../sde1
+readlink /dev/disk/by-label/OLY_E-30
+# ../../sde1
+readlink -f /dev/disk/by-label/OLY_E-30
+# /dev/sde1
+findmnt /dev/sde1
+# TARGET                 SOURCE    FSTYPE OPTIONS
+# /media/$USER/OLY_E-30 /dev/sde1 vfat   rw,nosuid,nodev,relatime,uid=1000,gid=1000,fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,showexec,utf8,flush,errors=remount-ro
+findmnt -n -o target /dev/sde1
+# /media/$USER/OLY_E-30
+# where -n, --noheadings do not print a header line and -o, --output target defines the output columns.
+
+cd $(findmnt -n -o target /dev/sde1)
+cd $(findmnt -n -o target $(readlink -f /dev/disk/by-label/OLY_E-30))
+
+cd $(findmnt -n -o target $(readlink -f /dev/disk/by-label/OLY_E-30))/DCIM/100OLYMP
+
+cd /media/$USER/DCIM/100OLYMP
+
+# *********************************
+
+# Problem is this won't persist after camera re-formatting of card (or different card being used), so..
+
+ls -l /dev/disk/by-id/*OLY*
+# lrwxrwxrwx 1 root root  9 Apr  1 10:25 /dev/disk/by-id/usb-OLYMPUS_E-30_G68508673-0:0 -> ../../sde
+# lrwxrwxrwx 1 root root 10 Apr  1 10:25 /dev/disk/by-id/usb-OLYMPUS_E-30_G68508673-0:0-part1 -> ../../sde1
+# findmnt can follow the link so no need for readlink NB must specify part1
+
+cd $(findmnt -n -o target /dev/disk/by-id/usb-OLYMPUS_E-30_G68508673-0:0-part1)/DCIM/100OLYMP
+cd $(findmnt -n -o target /dev/disk/by-id/*OLYMPUS_E-30*part1)/DCIM/100OLYMP
+
+#  Create directory structure from metadata
+# ==========================================
+
+# Directory structure required is as follows:
+# /home/My Home/My Pictures/2024/raw images/03 Mar/2024_03_24
+# with only one file on the camera
+
+exiftool -All *
+exiftool - args -*date* *
+# -FileModifyDate=2024:03:31 15:46:44+01:00
+# -FileAccessDate=2024:04:01 01:00:00+01:00
+# -FileInodeChangeDate=2024:03:31 15:46:44+01:00
+# -ModifyDate=2024:03:31 14:46:44
+# -DateTimeOriginal=2024:03:31 14:46:44
+# -CreateDate=2024:03:31 14:46:44
+exiftool -s3 -DateTimeOriginal *
+# 2024:03:31 14:46:44
+# see man strftime for formating
+exiftool -s3 -d "/home/My Home/My Pictures/%Y/raw images/%m %b/%Y_%m_%d" -DateTimeOriginal *
+# /home/My Home/My Pictures/2024/raw images/03 Mar/2024_03_31
+mkdir -p '/home/My Home/My Pictures/2025/raw images/03 Mar/2024_03_31'
+# creates directory with parents if doesn't exist but no error if existing
+# "$()" quotes prevent string splitting
+
+mkdir -p "$(exiftool -s3 -d "/home/My Home/My Pictures/%Y/raw images/%m %b/%Y_%m_%d" -DateTimeOriginal *)"
+
+# with more files and exiftool's advanced formating
+
+exiftool -b -p '/home/My Home/My Pictures/${DateTimeOriginal;DateFmt("%Y")}/raw images/${DateTimeOriginal;DateFmt("%m %b/%Y_%m_%d")}' *
+# /home/My Home/My Pictures/2024/raw images/03 Mar/2024_03_31
+# /home/My Home/My Pictures/2024/raw images/04 Apr/2024_04_06
+# /home/My Home/My Pictures/2024/raw images/04 Apr/2024_04_06
+# /home/My Home/My Pictures/2024/raw images/04 Apr/2024_04_06
+
+mkdir -p "$(exiftool -b -p '/home/My Home/My Pictures/${DateTimeOriginal;DateFmt("%Y")}/raw images/${DateTimeOriginal;DateFmt("%m %b/%Y_%m_%d")}' *)"
+
+# this fails because of spaces and newlines. Images must be accessed one at a time in loop
+
+#  Copy files to hdd
+# ===================
+
+# -avh = -a|	-r	recursive
+#	   |	-l	copy links
+#	   |	-p	preserve permisions
+#	   |	-t	preserve modification times
+#	   |	-g	preserve group
+#	   |	-o	preserve ownner (su)
+#	   |	-D	preserve device / special files
+# 	 -v	--	verbose
+#	 -h	--	human readable		
+rsync -avh ./* "/home/My Home/My Pictures/2024/raw images/03 Mar/2024_03_31"
+# sending incremental file list
+# P3314481.ORF
+# sent 11.53M bytes  received 35 bytes  23.06M bytes/sec
+# total size is 11.52M  speedup is 1.00
+
+rsync -avh ./* "$(exiftool -s3 -d "/home/My Home/My Pictures/%Y/raw images/%m %b/%Y_%m_%d" -DateTimeOriginal P4064482.ORF)"
+# P3314481.ORF
+# P4064482.ORF
+# P4064483.ORF
+# P4064484.ORF
+# sent 174.52M bytes  received 301 bytes  5.92M bytes/sec
+# total size is 174.48M  speedup is 1.00
+
+#  Mount / unmount second drive
+# ==============================
+
+# mounting in file manager / gnome-disks uses udisksctl allows using system defaults and no sudo.
+# auto			=	Can be mounted with the -a --all option mount all filesystems mentioned in fstab in order (ie at system startup)
+# x-gvfs-show		=	show in user interface
+# x-udisks-auth		=	additional authorisation to mount
+# rw			=	mount in read / wrtite mode
+# nosuid		=	do not honour ID and group bits
+# nodev			=	do not interpret character or block special devices
+# relatime		=	update inode access times relative to modify or change time (kernel default)
+# errors=remount-ro	=	when in error remount the disk as read only
+# uhelper=udisks2	=	udisks provides interfaces to enumerate and perform operations on disks and storage
+       devices
+ls -l /dev/disk/*/* | grep sdc
+# lrwxrwxrwx 1 root root  9 Apr  7 08:22 /dev/disk/by-id/ata-ST1000DM010-2EP102_Z9ACQRW7 -> ../../sdc
+# lrwxrwxrwx 1 root root  9 Apr  7 08:22 /dev/disk/by-id/wwn-0x5000c500a2abc23a -> ../../sdc
+# lrwxrwxrwx 1 root root  9 Apr  7 08:22 /dev/disk/by-label/Backup\x20Data -> ../../sdc
+# lrwxrwxrwx 1 root root  9 Apr  7 08:22 /dev/disk/by-path/pci-0000:00:11.0-ata-2 -> ../../sdc
+# lrwxrwxrwx 1 root root  9 Apr  7 08:22 /dev/disk/by-path/pci-0000:00:11.0-ata-2.0 -> ../../sdc
+# lrwxrwxrwx 1 root root  9 Apr  7 08:22 /dev/disk/by-uuid/b46574b0-076c-48bb-bad5-461c19b4262e -> ../../sdc
+
+lsblk -p /dev/sdc
+# NAME		MAJ:MIN	RM	SIZE	RO	TYPE	MOUNTPOINTS
+# /dev/sdc	8:32	0	931.5G	0	disk 
+lsblk --fs  -p /dev/sdc
+# NAME		FSTYPE	FSVER	LABEL		UUID					FSAVAIL	FSUSE%	MOUNTPOINTS
+# /dev/sdc	ext4	1.0	Backup Data	b46574b0-076c-48bb-bad5-461c19b4262e
+# where -p, --paths print complete device path and -f, --fs output info about filesystems.
+
+udisksctl mount -b /dev/disk/by-uuid/b46574b0-076c-48bb-bad5-461c19b4262e
+# Mounted /dev/sdc at /media/$USER/Backup Data
+
+lsblk -p /dev/sdc
+# NAME		MAJ:MIN	RM	SIZE	RO	TYPE	MOUNTPOINTS
+# /dev/sdc   	8:32	0	931.5G	0	disk	/media/$USER/Backup Data
+lsblk -fp /dev/sdc
+# NAME   	FSTYPE FSVER	LABEL		UUID					FSAVAIL	FSUSE%	MOUNTPOINTS
+# /dev/sdc	ext4	1.0	Backup Data	b46574b0-076c-48bb-bad5-461c19b4262e	606.1G	29%	/media/$USER/Backup Data
+
+mount -l | grep /dev/sdc
+# /dev/sdc on /media/$USER/Backup Data type ext4 (rw,nosuid,nodev,relatime,errors=remount-ro,uhelper=udisks2) [Backup Data]
+cat /proc/self/mountinfo | grep /dev/sdc
+# 761 30 8:32 / /media/$USER/Backup\040Data rw,nosuid,nodev,relatime shared:370 - ext4 /dev/sdc rw,errors=remount-ro
+findmnt /dev/sdc
+# TARGET                    SOURCE   FSTYPE OPTIONS
+# /media/$USER/Backup Data /dev/sdc ext4   rw,nosuid,nodev,relatime,errors=remount-ro
+
+udisksctl unmount -b /dev/disk/by-uuid/b46574b0-076c-48bb-bad5-461c19b4262e
+# Unmounted /dev/sdc.
+
+# Equivalent mount command requires sudo password and permanent mountpoint created
+# mount defaults are:
+# rw			=	mount in read / wrtite mode
+# suid			=	honour set user ID and group id bits
+# dev			=	interpret character or block special devices on system
+# exec			=	permit execution of binaries
+# auto			=	can be mounted with -a --all option
+# nouser		=	forbid ordinary user to mount file system
+# async			=	all I/O to filesystem should be done asynchronously
+
+sudo mount -o rw,nosuid,nodev,relatime,errors=remount-ro UUID=b46574b0-076c-48bb-bad5-461c19b4262e '/media/$USER/Backup Data' -o X-mount.mkdir
+
+findmnt | grep /dev/sdc
+# └─/media/$USER	/dev/sdc	ext4	rw,nosuid,nodev,relatime,errors=remount-ro
+
+# Unless /etc/fstab is edited and permanent mountpoint created (user implies nosuid nodev noexec)
+sudo cp /etc/fstab /etc/fstab_bak
+sudo nano /etc/fstab
+UUID=b46574b0-076c-48bb-bad5-461c19b4262e	/media/$USER/Backup\040Data	ext4	rw,user,noauto,relatime,errors=remount-ro	0	0
+sudo mkdir '/media/$USER/Backup Data'
+mount UUID=b46574b0-076c-48bb-bad5-461c19b4262e
+umount UUID=b46574b0-076c-48bb-bad5-461c19b4262e
+
+
+#  mkdir and Rsync 
+# =================
+
+mkdir -p "$(exiftool -s3 -d "/media/$USER/Backup Data/My Pictures/%Y/raw images/%m %b/%Y_%m_%d" -DateTimeOriginal P4064482.ORF)"
+rsync -avh ./* "$(exiftool -s3 -d "/media/$USER/Backup Data/My Pictures/%Y/raw images/%m %b/%Y_%m_%d" -DateTimeOriginal P4064482.ORF)"
+sending incremental file list
+# P3314481.ORF
+# P4064482.ORF
+# P4064483.ORF
+# P4064484.ORF
+# P4064485.ORF
+# P4064486.ORF
+# sent 174.52M bytes  received 301 bytes  116.35M bytes/sec
+# total size is 174.48M  speedup is 1.00
+
+# Testing output
+# ==============
+
+diff -r working_dir backup_dir && echo working_dir and backup_dir subdirectories are sync\'d
+find ./ -name '*.JPG' -o -name '*.ORF'
+
+
+#  Unmount and tidy up
+# =====================
+
+udisksctl unmount -b /dev/disk/by-uuid/b46574b0-076c-48bb-bad5-461c19b4262e
+# Unmounted /dev/sdc.
+
+# Bash scripting
+# ==============
+
+# for loops and filename expansion
+# ================================
+
+for name [ [in [words ...] ] ; ] do commands; done
+# or
+for (( expr1 ; expr2 ; expr3 )) ; do commands ; done
+
+for i in 1 2 3; do echo $i; done
+for i in $(seq 1 3); do echo $i; done
+for ((i=1; i<=3; i++)); do echo $i; done
+
+# will all echo
+# 1
+# 2
+# 3
+# to the terminal. The seq command prints numbers from first (default = 1) to last in steps of increment (default = 1).
+
+for i in *.txt; do echo $i is a textfile in the current directory; done
+
+# list the files with *.txt suffixes in current directory
+# iterator variable i becomes the file name corresponding to the current iteration of the loop from the expanded list of all .txt files in the current directory.
+
+for i in *.[tl][xo][tg]; do echo $i is a text or log file in the current directory; done
+# and
+for i in *.txt *.log; do echo $i is a text or log file in the current directory; done
+# will match all .txt and all .log files in the directory
+for i in *[1-3]; do echo $i;done
+# will match all filenames ending 1, 2 or 3 ie file1, file2, file3 etc
+for i in *[1-3]; do echo $i;done
+# will match all filenames containing 1, 2 or 3 ie file1, file2.txt, file.3 etc
+
+# filename expansion pattern matching
+# *		=	matches to any string
+# *.*		=	matches any file
+# **		=	match all files and 0 or more directories and subdirectories
+# **/		=	match only directories and subdirectories
+# ?		=	match any single character
+# []		=	match any one enclosed characters
+# [^]or [!]	=	do not match any enclosed characters
+# [-]		=	match a range of charcters ie [a-c]=[abc]
+# [:class:]	=	match a class such as alnum alpha ascii blank etc
+
+
+#  scripting using a test environment
+# ===================================
+ 
+# where test files are in ~/photo_downloader/camera_dir
+# copies to be made in ~/photo_downloader/working_dir
+# and ~/photo_downloader/backup_dir
+# bash brace expansion allows mkdir ./{backup,camera,working}_dir to create backup_dir camera_dir working_dir in current directory.
+# check out rsync --mkpath no need for mkdir
+
+image_types="*.ORF *.JPG"
+for image_files in $image_types
+do
+	echo image is $image_files
+	target_dir="$(exiftool -s3 -d "/%Y/raw images/%m %b/%Y_%m_%d" -DateTimeOriginal "$image_files")"
+	echo target dir is $target_dir
+	rsync --mkpath -avh "$image_files" ../working_dir"$target_dir"/"$image_files"
+	echo rsync path is ../working_dir"$target_dir"/"$image_files"
+done
+
+# close rysnc command with '&' to run in background
+
+image_types="*.ORF *.JPG"
+for image_files in $image_types
+do
+ 	echo image is $image_files
+ 	target_dir="$(exiftool -s3 -d "/%Y/raw images/%m %b/%Y_%m_%d" -DateTimeOriginal "$image_files")"
+ 	echo target dir is $target_dir
+ 	rsync --mkpath -avh "$image_files" ../working_dir"$target_dir"/"$image_files"&
+ 	echo rsync path is ../backup_dir"$target_dir"/"$image_files"
+ 	rsync --mkpath -avh "$image_files" ../backup_dir"$target_dir"/"$image_files"
+ 	echo rsync path is ../backup_dir"$target_dir"/"$image_files"
+done
+
+# use 'wait' to wait for all processes to finish before ending bash script
+
+
+
+image_types="*.ORF *.JPG"
+cd ~/photo_downloader/camera_dir
+for image_files in $image_types
+do
+	echo image is $image_files
+	target_dir="$(exiftool -s3 -d "/%Y/raw images/%m %b/%Y_%m_%d" -DateTimeOriginal "$image_files")"
+	echo target dir is $target_dir
+	echo rsync path is ../working_dir"$target_dir"/"$image_files"
+	rsync --mkpath -avh "$image_files" ../working_dir"$target_dir"/"$image_files"&
+	echo rsync path is ../backup_dir"$target_dir"/"$image_files"
+	rsync --mkpath -avh "$image_files" ../backup_dir"$target_dir"/"$image_files"&
+done
+wait
+
+
+#  scripting using working environment
+# ====================================
+
+#! /bin/bash
+udisksctl mount -b /dev/disk/by-label/Backup_Data
+camera_dir=$(findmnt -n -o target $(readlink -f /dev/disk/by-id/*OLYMPUS_E-30*part1))/DCIM/100OLYMP
+backup_dir=$(findmnt -n -o target $(readlink -f /dev/disk/by-label/Backup_Data))'/My Pictures/'
+working_dir='/home/My Home/My Pictures/'
+image_types="ORF JPG"
+loop=1
+for camera_image_file in "$camera_dir"/*.$image_types
+do
+	
+	image_filename=${camera_image_file##"$camera_dir"/}
+	target_dir="$(exiftool -s3 -d "%Y/raw images/%m %b/%Y_%m_%d/" -DateTimeOriginal "$camera_image_file")" # ||break
+	rsync --mkpath -avh "$camera_image_file" "$working_dir"test/"$target_dir"$image_filename&
+	rsync --mkpath -avh "$camera_image_file" "$backup_dir"test/"$target_dir"$image_filename&
+	echo $loop.1 $camera_dir $'\t' "$camera_dir"
+	echo $loop.2 $camera_image_file $'\t' "$camera_image_file"
+	echo $loop.3 ${camera_image_file##"$camera_dir"/}
+	echo $loop.4 $image_filename $'\t' "$image_filename"
+	echo $loop.5 $image_types $'\t' "$image_types"
+	echo $loop.6 $working_dir $'\t' "$working_dir"
+	echo $loop.7 $backup_dir $'\t' "$backup_dir"
+	echo $loop.8 $target_dir $'\t' "$target_dir"
+	echo $loop.9 "$camera_image_file" "$working_dir"test/"$target_dir"$image_filename; 
+	echo $loop.10 "$camera_image_file" "$backup_dir"test/"$target_dir"$image_filename; 
+	echo $loop.11 "$camera_dir"/*.$image_types
+#	rsync --list-only "$camera_image_file" "$working_dir"test/"$target_dir"$image_filename&
+#	rsync --list-only "$camera_image_file" "$backup_dir"test/"$target_dir"$image_filename&
+	wait
+	diff -r "$working_dir"test/"$target_dir" "$backup_dir"test/"$target_dir" && echo working_dir and backup_dir subdirectories are sync\'d $'\n'
+	
+	
+	
+	#for file_type in $image_types
+	#do
+		#echo a1 $file_type $'\t' "$file_type"
+		#find "$camera_dir" -name *."$file_type"
+		#echo a2
+		#find "$camera_dir" -name *.ORF -printf %P$' '
+		#echo a3
+		#find "$working_dir"test/"$target_dir" -name *."$file_type"
+		#echo a4
+		#find "$backup_dir"test/"$target_dir" -name *."$file_type"
+		#break
+	#done
+	break
+	((loop++))
+done
+
+# why is there a entry JPG on the end of "$camera_dir"/*.$image_types
+
+
+# Testing variables -- correct quoting
+# ====================================
+
+# *** INCORRECT - no loop is created *** 
+
+image_types="./camera_dir/*.ORF ./camera_dir/*"
+echo \"image_types\" is "$image_types"
+counter=1
+
+for image_files in "$image_types"
+	do
+	echo counter is $counter
+	((counter++))
+	echo image_files is $image_files
+	echo \"image_files\" is "$image_files"
+done
+
+
+# "image_types" is ./camera_dir/*.ORF ./camera_dir/*.JPG
+# counter is 1
+# image_files is ./camera_dir/P1012753.ORF ./camera_dir/P1022758.ORF ./camera_dir/P1022764.ORF ./camera_dir/P4223186.JPG ./camera_dir/P4233291.JPG ./camera_dir/P4233292.JPG
+# "image_files" is ./camera_dir/*.ORF ./camera_dir/*.JPG
+
+# *** CORRECT ***
+
+image_types="*./camera_dir/*.ORF ./camera_dir/*"
+echo image_types is $image_types
+counter=1
+
+for image_files in $image_types
+	do
+	echo counter is $counter
+	((counter++))
+	echo image_files is $image_files
+	echo \"image_files\" is "$image_files"
+done
+
+
+# image_types is ./camera_dir/P1012753.ORF ./camera_dir/P1022758.ORF ./camera_dir/P1022764.ORF ./camera_dir/P4223186.JPG ./camera_dir/P4233291.JPG ./camera_dir/P4233292.JPG
+# counter is 1
+# image_files is ./camera_dir/P1012753.ORF
+# "image_files" is ./camera_dir/P1012753.ORF
+# counter is 2
+# image_files is ./camera_dir/P1022758.ORF
+# "image_files" is ./camera_dir/P1022758.ORF
+# counter is 3
+# image_files is ./camera_dir/P1022764.ORF
+# "image_files" is ./camera_dir/P1022764.ORF
+# counter is 4
+# image_files is ./camera_dir/P4223186.JPG
+# "image_files" is ./camera_dir/P4223186.JPG
+# counter is 5
+# image_files is ./camera_dir/P4233291.JPG
+# "image_files" is ./camera_dir/P4233291.JPG
+# counter is 6
+# image_files is ./camera_dir/P4233292.JPG
+# "image_files" is ./camera_dir/P4233292.JPG
+
+# Asynchronous commands
+# ======================
+
+# If a command is terminated by the control operator ‘&’, the shell executes the command asynchronously in a subshell. This is known as executing the command in the background, and these are referred to as asynchronous commands.The shell does not wait for the command to finish, and the return status is 0 (true). Use wait job control builtin to pause until all background jobs have completed.
+
+
+
+# two rsync commands running consecutively (no & terminating command)
+# real	0m37.061s	user	0m21.340s	sys	0m11.629s
+# two rsync commands running in parallel (& terminating both commands) with wait
+# real	0m26.219s	user	0m19.866s	sys	0m9.001s
+# one of two rsync commands running in background (& terminating one command) with or without wait
+# real	0m26.691s	user	0m19.829s	sys	0m9.400s
+# two rsync commands running in parallel (& terminating both commands) no wait
+# real	0m19.301s	user	0m19.064s	sys	0m8.081s
+# screen output gets mixed up without wait command
+# one rsync command on working_dir running in background (& terminating command) no wait then rsync working_dir to backup_dir after loop
+# real	0m21.037s	user	0m18.931s	sys	0m9.382s
+# two rsync commands running in parallel (& terminating both commands) with wait at end of loop
+# real	0m24.564s	user	0m18.632s	sys	0m8.455s
+# screen output findmnt -n -o target /dev/disk/by-label/"$backup_drive_label"gets mixed up
+# two rsync commands running in parallel (& terminating both commands) with wait
+# plus all the find commands in background with wait
+# real	0m25.658s	user	0m19.772s	sys	0m8.594s
+
+# tested against 87 items, totalling 682.8 MB
+
+
+# Putting a pause in
+# ==================
+
+# classic way similar to pause inother scripts uses read - reads a single line from the standard input and splits it into fields. The first word is assigned to the first name. if no names are supplied the line read is assigned to the REPLY variable.
+
+read -n 1 -p "hit a key to continue "
+# hit a key to continue k$
+# The key pressed is echoed and the prompt is displayed on the same line
+
+read -s -n 1 -p "hit any key to continue"$'\n'
+#
+# hit any key to continue
+# $ 
+
+# Where -s is silent ie do not echo input coming from the terminal -n 1 is return after reading 1 character rather than waiting for a newline and -p ".." is output the string prompt without a trailing newline before attempting to read ($'\n' adds a newline).
+
+while :;
+	do read -n 1 -s -p $'\r'"continue Y or N";
+	case $REPLY in 
+		(y | Y) break;;
+		(n | N) echo $'\n'exiting script; exit;;
+	esac;
+done;
+echo $'\n'continuing script
+
+# Where while :; do commands; done; is an endless loop which due to : which is do nothing beyond expanding arguments and performing redirections. The return status is zero. $'\r' is a carriage return that means the read prompt overites itself on each iteration of the loop. case word in pattern command esac selectively executes the command list corresponding to the first pattern that matches word. exit exits the shell if n or N inputted whereas break breaks out of the while loop if y or Y inputted. The echo $'\n'... makes sure the prompt starts on a newline as echo always sends a newline at the end of the string but read's prompt does not.
+# If the ‘;;’ operator is used within case, no subsequent matches are attempted after the first pattern match.
+
+# alternatively......
+
+echo select either 1, 2 or 3;
+	select item in exit break continue;
+		do echo $REPLY = $item;
+			if [[ -z "$item" ]];
+				then echo -n "null value select either 1, 2 or 3";
+				REPLY="";
+                      	elif (( "$REPLY"=="3" ));
+                                then echo $item;
+                                REPLY=""; 
+			fi
+		$item;
+		done;
+echo some more stuff and end script
+
+select name [in words ...]; do commands; done
+
+# The list of words following in is expanded, generating a list of items, and the set of expanded words is printed on the standard error output stream, each preceded by a number.If the line consists of a number corresponding to one of the displayed words, then the value of name is set to that word. If the line is empty, the words and prompt are displayed again.If EOF is read, the select command completes and returns 1. Any other value read causes name to be set to null. The line read is saved in the variable REPLY.
+# The line $item expands to one of the Bourne shell builtin commands: exit break or continue which is executed. 
+# The commands are executed after each selection until a break command is executed, at which point the select command completes.
+# The syntax of the if command is
+
+if test-commands; then
+	consequent-commands;
+[elif more-test-commands; then
+	more-consequents;]
+[else alternate-consequents;]
+fi
+
+# Note there is no ; after fi!! The test-commands list is executed, and if its return status is zero, the consequent-commands list is executed. If test-commands returns a non-zero status, each elif list is executed in turn, and if its exit status is zero, the corresponding more-consequents is executed and the command completes. If ‘else alternate-consequents’ is present, and the final command in the final if or elif clause has a non-zero exit status, then alternate-consequents is executed. The return status is the exit status of the last command executed, or zero if no condition tested true.
+
+[[ -z string ]]
+# Bash Conditional Expressions returns true if the length of string is zero.
+# This makes a null value rewrite the selections as if $REPLY was empty (no text before the enter key was pressed)
+
+(( "$REPLY"=="3" ));
+# Bash Arthimetic Expression returns true if the variable $REPLY is equal to 3 (item continue). This makes continue behave the same as null value and rewrite the list.
+
+# Debugging and testing bash
+# ==========================
+
+# test script with times builtin command (Print out the user and system times used by the shell and its children. The return status is zero.) See help, info or man times.
+times bash ./photo_downloader
+#	0m0.060s 0m0.125s
+#	0m1.802s 0m0.772s
+
+# or the shell reserved word (causes timing statistics to be printed for the pipeline once it finishes. Prints elapsed (wall-clock) time and user and system time consumed by the command’s execution. The -p option changes the output format to that specified by posix.)Exit Status: The return status is the return status of PIPELINE. See help time.
+time bash ./photo_downloader
+#OLYMPUS_E-30 camera is not attached, exiting
+#	real	0m0.013s
+#	user	0m0.000s
+#	sys	0m0.013s
+
+# or to use the externally installed version (run programs and summarize system resource usage) See info or man time.
+/usr/bin/time bash ./photo_downloader
+#	OLYMPUS_E-30 camera is not attached, exiting
+#	0.00user 0.01system 0:00.01elapsed 100%CPU (0avgtext+0avgdata 3328maxresident)k
+#	0inputs+0outputs (0major+376minor)pagefaults 0swaps
+
+/usr/bin/time -v bash ./photo_downloader
+#	OLYMPUS_E-30 camera is not attached, exiting
+#		Command being timed: "bash ./photo_downloader"
+#		User time (seconds): 0.01
+#		System time (seconds): 0.00
+#		Percent of CPU this job got: 100%
+#		Elapsed (wall clock) time (h:mm:ss or m:ss): 0:00.01
+#		Average shared text size (kbytes): 0
+#		Average unshared data size (kbytes): 0
+#		Average stack size (kbytes): 0
+#		Average total size (kbytes): 0
+#		Maximum resident set size (kbytes): 3328
+#		Average resident set size (kbytes): 0
+#		Major (requiring I/O) page faults: 0
+#		Minor (reclaiming a frame) page faults: 373
+#		Voluntary context switches: 3
+#		Involuntary context switches: 0
+#		Swaps: 0
+#		File system inputs: 0
+#		File system outputs: 0
+#		Socket messages sent: 0
+#		Socket messages received: 0
+#		Signals delivered: 0
+#		Page size (bytes): 4096
+#		Exit status: 0
+
+

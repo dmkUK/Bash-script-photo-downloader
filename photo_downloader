@@ -1,0 +1,275 @@
+#! /bin/bash
+
+# use bash -x ./photo_downloader to run in debug mode or
+# set -x
+
+backup_drive_label='Backup_Data'
+camera_name='OLYMPUS_E-30'
+camera_dir='/DCIM/100OLYMP/'
+working_dir='/home/My Home/My Pictures/' #test/'
+backup_dir='/My Pictures/' #test/'
+image_types='ORF JPG jpg'
+exiftool_date_pattern='%Y/raw images/%m %b/%Y_%m_%d/'
+
+function variable_print_outs ()
+{	
+	echo from line $1	
+	echo loop$loop.line$LINENO $camera_image_file $'\t' "$camera_image_file"
+	echo loop$loop.line$LINENO "$camera_dir"*."$filename_extension"
+	echo loop$loop.line$LINENO ${camera_image_file##"$camera_dir"}
+	echo loop$loop.line$LINENO $image_filename $'\t' "$image_filename"
+	echo loop$loop.line$LINENO $target_dir $'\t' "$target_dir"
+	echo loop$loop.line$LINENO "$camera_image_file" "$working_dir""$target_dir"$image_filename; 
+	echo loop$loop.line$LINENO "$camera_image_file" "$backup_dir""$target_dir"$image_filename;
+	echo $'\n'
+}
+
+
+if [[ $(findmnt -n -o target /dev/disk/by-id/*"$camera_name"*part1) ]]
+	then
+		echo "$camera_name" camera is attached
+	else
+		echo "$camera_name" camera is not attached, exiting
+		exit
+#		camera_dir=~/photo_downloader/camera_dir/	# alternative dir to test without camera attached
+fi
+
+if [[ $(findmnt -n -o target /dev/disk/by-label/"$backup_drive_label") ]]
+	then
+		echo "$backup_drive_label" disk is mounted
+	else
+		echo "$backup_drive_label" is not mounted
+		udisksctl mount -b /dev/disk/by-label/"$backup_drive_label"
+fi
+
+camera_dir=$(findmnt -n -o target /dev/disk/by-id/*"$camera_name"*part1)"$camera_dir"
+backup_dir=$(findmnt -n -o target /dev/disk/by-label/"$backup_drive_label")"$backup_dir"
+loop1=1000; loop2=1
+
+echo Settings$'\n' backup_drive_label$'\t'"$backup_drive_label"$'\n' camera_name$'\t'$'\t'"$camera_name"$'\n' camera_dir$'\t'$'\t'"$camera_dir"$'\n' working_dir$'\t'$'\t'"$working_dir"$'\n' backup_dir$'\t'$'\t'"$backup_dir"$'\n' exiftool_date_pattern$'\t'"$exiftool_date_pattern"$'\n' image_types$'\t'$'\t'"$image_types"
+
+for filename_extension in $image_types
+do
+	for camera_image_file in "$camera_dir"*."$filename_extension"
+	do
+		if (( "$loop2"==1 ))
+		then
+			[[ -a "$camera_image_file" ]] && echo $'\n'file extension $filename_extension exists on camera$'\n' || { echo $'\n'file extension $filename_extension does not exist on camera$'\n'; break; }
+		fi
+		image_filename=${camera_image_file##"$camera_dir"}
+		target_dir="$(exiftool -s3 -d "$exiftool_date_pattern" -DateTimeOriginal "$camera_image_file")"
+		loop=$(($loop1+$loop2 ))
+
+#		variable_print_outs "$LINENO"
+
+		rsync --mkpath --info name2 -ah "$camera_image_file" "$working_dir""$target_dir"$image_filename | tr -d '\n'; echo -n $'\r'&
+		rsync --mkpath --info name2 -ah "$camera_image_file" "$backup_dir""$target_dir"$image_filename | tr -d '\n'; echo -n $'\r'
+		wait
+
+		camera_file_list[$loop]="$(find "$camera_dir" -name "$image_filename")"$'\n'
+		working_file_list[$loop]="$(find "$working_dir""$target_dir" -name "$image_filename")"$'\n'
+		backup_file_list[$loop]="$(find "$backup_dir""$target_dir" -name "$image_filename")"$'\n'
+		
+#		rsync --list-only "$camera_image_file" "$working_dir""$target_dir"$image_filename&
+#		rsync --list-only "$camera_image_file" "$backup_dir""$target_dir"$image_filename&
+
+#		diff -r "$working_dir""$target_dir" "$backup_dir""$target_dir" && echo working_dir and backup_dir subdirectories are sync\'d $'\n'
+
+		((loop2++))
+	done
+	((loop1+=1000)); loop2=1
+done
+# rsync --dry-run --mkpath --info name2 -ah "$working_dir" "$backup_dir"
+echo camera file list:$'\n' "${camera_file_list[*]##"$camera_dir"}" ${#camera_file_list[*]} files
+echo working file list:$'\n' "${working_file_list[*]}" ${#working_file_list[*]} files
+echo backup file list:$'\n' "${backup_file_list[*]}" ${#backup_file_list[*]} files
+
+# declare -p camera_file_list
+# declare -p working_file_list
+# declare -p backup_file_list
+
+
+#************************************************************************************************************
+# COMMENTS
+#***********************************************************************************************************
+#   1)	SPECIFIES THE INTERPRETER AND ITS LOCATION FOR THE SCRIPT
+#   3)	set BUILTIN MODIFIES SHELL BEHAVIOUR OR DISPLAYS NAMES AND VALUES OF SHELL VARIABLES. set -x OR set -o xtrace EQUIVALENT TO bash -x ./photo_downloader PRINTS A TRACE OF COMMANDS AND ARITHMATIC AND EXPANSIONS BEFORE EXECUTION FOR DEBUGGING
+#   6-12)	PLACED VARIABLE ASSIGNMENTS TOGETHER HERE TO ALLOW EASY CUSTOMISATION EDITING OR POSSIBLE INTERACTIVE SCRIPT CHOICE SAY FOR CAMERA ID. mUST BE QUOTED TO ALLOW FOR SPACES IN NAMES (NO WORD SPLITTING) '' PRESERVES THE LITERAL VALUE "" PRESERVES THE LITERAL VALUE EXCEPT FOR $'|! CHARACTERS. THE SPECIAL PARAMETERS * AND @ CREATE LISTS OF POSITIONAL PARAMETERS IF QUOTED
+#   6)	LABEL OF THE DRIVE TO MOUNT AND SEND THE BACKUP COPY TO, LABEL WAS THE EASIEST WAY TO CONSISTANTLY MOUNT DRIVE AND FIND THE MOUNT POINT ls /dev/disk/by-label/*
+#   7)	THE NAME OF THE CAMERA FOUND BY PLUGING IN CAMERA AND AFTER AUTO MOUNT EXECUTING ls /dev/disk/by-id/*
+#   8)	THE DIRECTORY STRUCTURE ON THE CAMERA'S MEMORY CARD, OLYMPUS USE /DCIM/100OLYMP
+#   9)	THE DIRECTORY ON ~/home WHERE FILES TO BE PROCESSED WILL BE LOCATED
+#  10)	THE DIRECTORY ON /media WHERE FILES TO BE ARCHIVED WILL BE LOCATED
+#  11)	THE IMAGE FILE EXTENSIONS TO BE SEARCHED FOR AND DOWNLOADED FROM THE CAMERA
+#  12)	PATTERN FOR exiftool -d DATE FORMAT OPTION USING strftime SYNTAX WHICH ULTIMATELY CREATES DATE BASED FOLDER STRUCTURE TO STORE IMAGES WHERE
+#				%Y = YEAR AS DECIMAL INCLUDING CENTURY ie 2024
+#				%m = MONTH AS DECIMAL ie 04
+#				%b = MONTH AS SHORT STRING ie APR
+#				%d = DAY OF THE MONTH AS DECIMAL ie 21
+# RESULTING IN 2024/raw images/04 Apr/2024_04_21
+# 14-25)	A FUNCTION TO PRINT OUT A LIST OF GLOBAL VARIABLES (BEFORE I FOUND set -x) TO HELP DEBUG / UNDERSTAND BASH AND TEST VARIABLE COMBINATIONS, EXPANSIONS AND SUBSTITUTIONS. COULD ALSO USE declare -p NAME WHERE -p	DISPLAY THE ATTRIBUTES AND VALUE OF EACH NAME
+#		declare -p camera_dir
+#			declare -- camera_dir="/media/$USER/OLY_E-30/media/$USER/OLY_E-30/DCIM/100OLYMP/"
+#  14)	LONGHAND OPENING FOR FUNCTION
+#  16)	PRINT OUT LINE NUMBER THE FUNCTION WAS CALLED FROM USING POSITIONAL PARAMETER $1 WHICH CONTAINS THE FIRST ARGUMENT PASSED TO THE FUNCTION IN THE CALL ie variable_print_outs <argument1>
+#  17)	PRINTS OUT THE LOOP VARIABLE COUNTER AND BASH VARIABLE $LINENO WHICH RETURNS THE LINE NUMBER OF THE CURRENT COMMAND IN ls /dev/disk/by-label/*THE SCRIPT ALONG WITH THE VARIABLES QUOTED AND UNQUOTED SEPERATED BY ANCI-C QUOTE CHARACTER $'\t' FOR TAB SPACES
+#  18)	AS ABOVE TESTING THE PARAMETERS EXPANDED TO MAKE THE LIST FOR THE LOOP ie /DCIM/100OLYMP/P421001.ORF /DCIM/100OLYMP/P421002.ORF etc
+#  19)	AS ABOVE BUT USING ${parameter##word} SHELL PARAMETER EXPANSION. word IS EXPANDED TO A PATTERN AND MATCHED. IF THE PATTERN MATCHES THE BEGINNING OF parameter THE RESULT IS THAT THE LONGEST MATCHING PATTERN IS DELETED. HERE IT IS USED TO DELETE THE PATH FROM THE FILENAME.
+#		${/media/username/DCIM/100OLYMP/P426001.ORF##/media/username/DCIM/100OLYMP/}
+# EXPANDS TO:		P426001.ORF
+#  24)	PRINTS A $'\n' NEWLINE ANSI-C QUOTE CHARACTER
+#  28-35)	if; then; else; fi CONDITIONAL TO DETECT CAMERA AND EXIT SCRIPT IF NOT FOUND
+#  28)	findmnt FINDS A MOUNTED FILESYSTEM WHERE -n, --noheadings IS DON'T PRINT COLUMN HEADINGS AND -o, --output IS THE OUTPUT COLUMNS TO BE SHOWN, IN THIS CASE target.
+#		findmnt -n -o target /dev/sdc1
+#			/media/$USER/OLY_E-30
+#		[[ /media/$USER/OLY_E30 ]]
+#			success OR error
+#  29)	IF THE CONDITIONAL IS TRUE then
+#  30)	PRINT A MESSAGE CAMERA ATTACHED
+#  31)	IF THE CONDITIONAL IF FALSE else
+#  32)	PRINT A MESSAGE CAMERA NOT ATTACHED
+#  33)	QUIT THE SCRIPT
+#  34)	AN ALTERNATIVE DIR SUPPLIED TO AID TESTING WITHOUT ATTACHING A CAMERA IF THE EXIT COMMAND IS COMMENTED OUT AND THIS LINE UNCOMMENTED
+#  35)	CLOSE if CONDITIONAL COMPOUND COMMAND
+#  37-43)	if; then; else; fi CONDITIONAL TO DETECT backup_data DRIVE AND MOUNT IF NESCESSARY. ORIGINALLY USED THE FOLLOWING
+#		if [[ -n $(findmnt -n -o target $(readlink -f /dev/disk/by-label/"$backup_drive_label")) ]]
+# WHERE readlink PRINTS THE VALUE OF A SYMBOLIC LINK OR CANONICAL (STANDARDISED) FILE NAME WHERE -f, --canonicalize IS CANONICALISE BY FOLLOWING EVERY SYMLINK IN EVERY COMPONENT OF THE GIVEN NAME RECURSIVELY; ALL BUT THE LAST COMPONENT MUST EXIST. findmnt FINDS A MOUNTED FILESYSTEM WHERE -n, --noheadings IS DON'T PRINT COLUMN HEADINGS AND -o, --output IS THE OUTPUT COLUMNS TO BE SHOWN, IN THIS CASE target.[[ expression ]] IS CONDITIONAL CONSTRUCT WHICH RETURNS A STATUS OF 0 OR 1 DEPENDING ON THE EVALAUATION OF expression. [[ -n string ]] IS A BASH CONDITIONAL EXPRESSION WHERE -n RETURNS true IF THE LENGTH OF THE STRING IS NON ZERO. EXIT OR RETURN STATUS IS 0 - SUCCESS OR NON ZERO - FAILURE. THIS SUPRESSES findmnt OUTPUT BY TESTING IF THE OUTPUT IS THERE OR NOT BUT THE -n, findmnt OPTIONS AND readlink ARE NOT NESCESSARY.
+#  37)		findmnt /dev/disk/by-label/Backup_Data
+#			[[ TARGET SOURCE FSTYPE OPTIONS /media/$USER/Backup_Data /dev/sdc ext4 rw,nosuid,nodev,relatime,errors=remount-ro ]] OR error
+#			true OR error
+#  38)	IF THE CONDITIONAL IS TRUE then
+#  39)	PRINT A MESSAGE DISK IS MOUNTED
+#  40)	IF THE CONDITIONAL IS FALSE else
+#  41)  PRINT A MESSAGE DISK IS NOT MOUNTED
+#  42)	USE udiskctl RATHER THAN mount BECAUSE THIS IS HOW NAUTILUS FILE MANAGER DOES IT, THE MOUNT WILL HAVE THE SAME DEFAULTS AND IT DOOES NOT NEED TO BE ROOT (REQUIRING USER PASSWORD) AS mount DOES. -b, --block-device THE BLOCK DEVICE TO MOUNT.
+#		udiskctl mount -b /dev/disk/by-label/Backup_Data
+#  45)	PREPEND THE MOUNTPOINT TO THE camera_dir VARIABLE USING findmnt
+#		findmnt -n -o target /dev/disk/by-id/usb-"OLYMPUS_E-30"_G68508673-0:0-part1
+#			/media/$USER/OLY_E-30
+#		camera_dir=/media/$USER/OLY_E-30"/DCIM/100OLYMP/"
+#  46)	PREPEND THE MOUNTPOINT TO THE backup_dir VARIABLE USING findmnt
+#		findmnt -n -o target /dev/disk/by-label/"Backup_Data"
+#			/media/$USER/Backup_Data
+#		backup_dir=/media/$USER/Backup_Data"/My Pictures/"
+#  47)	loop1 AND loop2 COUNT THE LOOPS FOR COPYING THE FILES. ORINGINALLY FOR TRACING IN THE FUNCTION variable_print_outs() BUT loop2 ALSO ALLOWS LIMITING SOME COMMANDS TO THE FIRST RUN OF THE LOOPS (LINE 55). SHELL ARITHMETIC REQUIRES INTEGERS IN ORDER TO CREATE A THIRD VARIABLE FOR THE COMBINED LOOP COUNT (loop) I STARTED loop1 AT 1000.
+#  49)	PRINTS OUT THE VARIABLES
+#		$backup_drive_label	=	Backup_Data
+#		$camera_name		=	OLYMPUS_E-30
+#		$camera_dir		=	/media/$USER/OLY_E-30/DCIM/100OLYMP/
+#		$working_dir		=	/home/My Home/My Pictures/
+#		$backup_dir		=	/media/$USER/Backup_Data/My Pictures/
+#		$exiftool_date_pattern	=	%Y/raw images/%m %b/%Y_%m_%d/
+#		$image_types		=	ORF JPG jpg
+# SEPERATED BY $'\n' NEWLINES OR $'\t' TAB SPACES
+#  51-102)	THE NESTED for LOOPS TO CYCLE THROUGH THE LIST OF IMAGE TYPES SPECIFIED IN image_types THEN THE LIST OF IMAGE FILES ON THE CAMERA AND COPIES THEM TO BOTH THE DESTINATION FOLDERS. THE for LOOP EXECUTES COMMANDS ONCE FOR EACH MEMBER OF THE LIST WORDS WITH THE VARIABLE NAME TAKING THE VALUE OF THE WORD MATCHED FOR THAT RUN OF THE LOOP.
+#		for NAME in WORDS; do COMMANDS; done
+#  51)	AT THE FIRST RUN OF THE LOOPS ie loop1 = 1000 AND loop2 = 1
+#		for filename_extension in ORF JPG jpg
+#			$filename_extension=ORF
+#		for camera_image_file in /media/$USER/OLY_E-30/DCIM/100OLYMP/*.ORF
+# ie A LIST OF ALL .ORF FILES IN 100OLYMP
+#			$camera_image_file=/media/$USER/OLY_E-30/DCIM/100OLYMP/P0421001.ORF
+#  55-58)	PUT A CHECK IN TO SEE IF THIS IS THE FIRST RUN OF THE LOOP. IF YES THEN CHECK IF FILE EXISTS, IF NO BREAK OUT OF LOOP. WITHOUT THIS CHECK IF FILE DOES NOT EXIST THE STRING *.ORF ITSELF IS PASSED AND AN UNNESCESSARY RUN OF THE LOOP PERFORMED
+#  55) IF STATEMENT USES ARITHMETIC EXPANSION AND SHELL (INTEGER) ARITHMETIC TO TEST EQUALITY OF loop2 TO A VALUE OF 1.
+#  57)	CONDITIONAL WHICH RETURNS A STATUS OF 0 SUCCESS OR 1 FAIL DEPENDANT ON THE EVALUATION OF [[ expression ]]. THE BASH CONDITIONAL EXPRESSION -a file RETURNS TRUE IF FILE EXISTS. THE PIPELINE OPERATORS && AND || ARE 'AND' AND 'OR' WHILST ; IS FOR THE CONSECUTIVE EXECUTION OF COMMANDS.
+#		[[ -a /media/$USER/OLY_E-30/DCIM/100OLYMP/*.ORF ]]
+# RETURNS 0 (SUCCESS) WHEN FILE EXISTS ON CAMERA && (AND) PRINTS THE EXTENSION EXISTS || (OR) RETURNS 1 (FAIL) WHEN FILE DOES NOT EXIST, PRINTS FILE EXTENSION DOESNT EXIST MESSAGE AND BREAKS OUT OF LOOP. THE COMMANDS AFTER || ARE GROUPED TOGETHER WITH {} EXECUTING THE LIST OF COMMANDS AS A UNIT IN THE CURRENT SHELL CONTEXT NOT A SUBSHELL.
+#  59)	USES SHELL PARAMETER EXPANSION TO REMOVE THE PATH FROM THE VARIABLE image_filename. ${ parameter##word } WHERE word IS PATTERN MATCHED TO parameter. IF THE MATCH IS MADE TO THE BEGINNING OF parameter THE RESULT IS THE DELETION OF THE LONGEST MATCHING PATTERN.
+#		image_filename = /media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF ## /media/$USER/OLY_E-30/DCIM/100OLYMP/
+#			image_filename = P421001.ORF
+#  60)	USE exiftool TO READ THE METADATA IN IMAGE FILES FOR THE -DateTimeOriginal TAG AND CREATE A DIRECTORY NAMING PATTERN. -s3 -short3 PRINTS VALUES ONLY -d -dateformat USING strftime SYNTAX WHERE
+#			%Y	-	YEAR AS DECIMAL INCLUDING CENTURY ie 2024
+#			%m	-	MONTH AS DECIMAL ie 01
+#			%b	-	MONTH AS SHORT STRING ie Jan
+#			%d	-	DAY OF MONTH AS DECIMAL ie 01
+#		exiftool -s3 -d "%Y/raw images/%m %b/%Y_%m_%d/" -DateTimeOriginal "/media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF"
+#		target_dir="2024/raw images/04 Apr/2024_04_21/"
+#  61)	USE ARITHMETIC EXPANSION AND SHELL ARITHMETIC TO COMBINE loop1 AND loop2 COUNTERS TO MAKE REFERRENCE FOR TRACING IN FUNCTION variable_print_outs(). ie loop1 = 1000 AND loop2 = 1 THE loop = 1001. BASH ONLY DOES INTEGER MATHS WHICH IS WHY loop1 STARTS AT 1000.
+#  63)	CALLS FUNCTION variable_print_outs WITH ARGUMENT "$LINENO" (THE BASH VARIABLE FOR THECURRENT LINE NUMBER OF THE SCRIPT WHICH BECOMES POSITIONAL PARAMETER $1 IN THE FUNCTION, IN THIS CASE 63
+#  65)	THE rsync COMMAND TO MAKE THE DIRECTORY PATH AND COPY FILES TO THE WORKING DIRECTORY USING THE TERMINATOR & TO INDICATE PLACING THE COMMAND IN THE BACKGROUND AND CONTINUING WITH ASYNCHRONOUS PROCESSING. THE OUTPUT IS PIPED THROUGH tr. THIS IS COMMAND TO TRANSLATE OR DELETE CHARACTERS AND IS USED TO REMOVE THE TRAILING newline ESCAPE CHARACTER FROM RSYNC'S OUTPUT. AN echo carriage return COMMAND IS THEN USED (WITHOUT A NEWLINE OF IT'S OWN) TO MOVE THE CURSOR BACK TO THE BEGINING OF THE TERMINAL LINE. IT'S POSSIBLE TO USE THE \033[2K CONTROL CHARACTER, WHICH TELLS THE TERMINAL TO CLEAR THE WHOLE LINE, USEFUL IF THE OUTPUT IS DIFFERENT LENGTHS.
+#		rsync --mkpath --info name2 -ah "/media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF" "/home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF"| tr -d '\n'; echo -n $'\r'&
+#		-- mkpath		CREATE DESTINATION'S MISSING PATH COMPONENTS
+#		-- info name2		INFORMATION VERBOSITY
+#		-h --human readable	OUTPUT NUMBERS IN HUMAN READABLE FORMAT
+#		-a --archive		ARCHIVE MODE, IMPLIES
+#						-r	RECURSIVE
+#						-l	COPY LINKS
+#						-p	PRESERVE PERMISSIONS
+#						-t	PRESERVE MODIFICATION TIMES
+#						-g	PRESERVE GROUP
+#						-o	PRESERVE OWNER
+#						-D	PRESERVE DEVICE / SPECIAL FILES
+#	tr	-d --delete		delete characters in SET1, do not translate
+#	echo	-n			do not output the trailing newline
+#  66) rsync COMMAND FOR BACKUP DIRECTORY
+#		rsync --mkpath --info name2 -ah "/media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF" "/medis/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF" | tr -d '\n'; echo -n $'\r'
+#  67) wait COMMAND PAUSES THE SCRIPT UNTIL ALL BACKGROUND PROCESSES COMPLETE. ALTHOUGH THE SCRIPT IS QUICKER WITHOUT IT, OUTPUTS BECOME JUMBLED UP AS PROCESSES COMPLETE IN THE WRONG ORDER
+#  69)	CREATE A LIST OF THE FILES TO BE COPIED WITH A NEWLINE $'\n' IN AN ARRAY BY USING FIND COMMAND TO CONFIRM COPY.
+#		find "/media/$USER/OLY_E-30/DCIM/100OLYMP" -name "P421001.ORF"
+#			/media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF
+#		camera_file_list[1001]="/media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF"$'\n'
+#  70)	CREATE A LIST OF THE FILES LOCATED ON WORKING SYSTEM WITH A NEWLINE $'\n' IN AN ARRAY BY USING FIND COMMAND
+#		find "/home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21" -name "P421001.ORF"
+#			/home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF
+#		working_file_list[1001]="/home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF""$'\n'
+#  71)	CREATE A LIST OF THE FILES LOCATED ON BACKUP SYSTEM WITH A NEWLINE $'\n' IN AN ARRAY BY USING FIND COMMAND
+#		find "/media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21" -name "P421001.ORF"
+#			/media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF
+#		backup_file_list[1001]="/home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF""$'\n'
+#  73)	USING rsync --testonly TO PERFORM A TEST RUN OF rsync COMMAND
+#  74)	USING rsync --testonly TO PERFORM A TEST RUN OF rsync COMMAND
+#  76)	USE diff TO COMPARE CONTENTS OF WORKING AND BACKUP DIRECTORIES && IF SUCCESSFULL PRINT OUT THE DIRECTORIES SYNCHRONISED (USING \ TO ESCAPE THE SINGLE QUOTE AND PRINT IT LITERALLY)
+#		diff -r /home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21 /media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21
+#		success 
+#		print synchronised message
+#  78)	USE SHELL ARITHMETIC TO ADD 1 TO THE VALUE OF loop2 AT END OF LOOP
+#		loop2 = loop2 + 1
+#  79)	CLOSE LOOP2
+#  80)	USE SHELL ARITHMETIC TO ADD 1000 TO THE VALUE OF loop1 AND RESET loop1 TO 1
+#  81)	CLOSE LOOP1
+#  82)	TEST rsync COMPLETED STRUCTURE FROM working_dir TO backup_dir IN ONE GO. NOT KEEN ON THIS AS IT WILL RUN THROUGH ALL CHANGES MADE TO working_dir ALTHOUGH IT IS QUICKER.
+#		rsync --mkpath --info name2 -ah "/home/$USER/My Pictures/" "/media/$USER/Backup_Data/My Pictures/"
+#		-- mkpath		CREATE DESTINATION'S MISSING PATH COMPONENTS
+#		-- info name2		INFORMATION VERBOSITY
+#		-h --human readable	OUTPUT NUMBERS IN HUMAN READABLE FORMAT
+#		-a --archive		ARCHIVE MODE, IMPLIES
+#						-r	RECURSIVE
+#						-l	COPY LINKS
+#						-p	PRESERVE PERMISSIONS
+#						-t	PRESERVE MODIFICATION TIMES
+#						-g	PRESERVE GROUP
+#						-o	PRESERVE OWNER
+#						-D	PRESERVE DEVICE / SPECIAL FILES		
+#  83)	PRINT OUT A SUMMARY LIST OF FILES ON THE CAMERA WHERE ${#name[*]} IS THE NUMBER OF ELEMENTS IN THE ARRAY camera_file_list
+#		"${/media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF\n /media/$USER/OLY_E-30/DCIM/100OLYMP/P421002.ORF\n /media/$USER/OLY_E-30/DCIM/100OLYMP/P421003.ORF\n ## "/media/$USER/OLY_E-30/DCIM/100OLYMP/"}" ${# /media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF\n /media/$USER/OLY_E-30/DCIM/100OLYMP/P421002.ORF\n /media/$USER/OLY_E-30/DCIM/100OLYMP/P421003.ORF\n}
+#			camera file list
+#			 P421001.ORF
+#			 P421002.ORF
+#			 P421003.ORF
+#			 3 files
+#  84)	PRINT OUT A SUMMARY LIST OF FILES IN THE WORKING DIRECTORY WHERE ${#name[*]} IS THE NUMBER OF ELEMENTS IN THE ARRAY working_file_list
+#		"${/home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF/n /home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421002.ORF/n /home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421003.ORF/n ## "/home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/"}" ${# /home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF/n /home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421002.ORF/n /home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421003.ORF/n}
+#			working file list
+#			 P421001.ORF
+#			 P421002.ORF
+#			 P421003.ORF
+#			 3 files
+#  85)	PRINT OUT A SUMMARY LIST OF FILES IN THE BACKUP DIRECTORY WHERE ${#name[*]} IS THE NUMBER OF ELEMENTS IN THE ARRAY working_file_list
+#		"${/media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF/n /media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421002.ORF/n /media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421003.ORF/n ## "/media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21"}" ${# /media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF/n /media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421002.ORF/n /media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421003.ORF/n}
+#			working file list
+#			 P421001.ORF
+#			 P421002.ORF
+#			 P421003.ORF
+#			 3 files
+#  87)	SHELL BUILTIN COMMAND declare USED WITH -p AND name ARGUMENT DISPLAYS THE ATTRIBUTES AND VALUES OF THE VARIABLE
+#		declare -p camera_file_list
+# 			declare -a camera_file_list=([1001]=$'/media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF\n' [1002]=$'/media/$USER/OLY_E-30/DCIM/100OLYMP/P421002.ORF\n' [1003]=$'/media/$USER/OLY_E-30/DCIM/100OLYMP/P421003.ORF\n')
+#  88)	SHELL BUILTIN COMMAND declare USED WITH -p AND name ARGUMENT DISPLAYS THE ATTRIBUTES AND VALUES OF THE VARIABLE
+#		declare -p working_file_list
+# 			declare -a working_file_list=([1001]=$'/home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF\n' [1002]=$'/home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421002.ORF\n' [1003]=$'/home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421003.ORF\n')
+#  89)	SHELL BUILTIN COMMAND declare USED WITH -p AND name ARGUMENT DISPLAYS THE ATTRIBUTES AND VALUES OF THE VARIABLE
+#		declare -p backup_file_list
+# 			declare -a backup_file_list=([1001]=$'/media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF\n' [1002]=$'/media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421002.ORF\n' [1003]=$'/media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421003.ORF\n')
+
+
+
