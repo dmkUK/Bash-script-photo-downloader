@@ -1,6 +1,6 @@
 #! /bin/bash
 
-# use bash -x ./photo_downloader to run in debug mode or
+# use bash -x ./photo_downloader to run in debug mode or uncomment the following:
 # set -x
 
 backup_drive_label='Backup_Data'
