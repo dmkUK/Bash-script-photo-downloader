@@ -1,0 +1,13 @@
+IFS=,$'\n';
+tdir_string=$(exiftool -p '${filename},${datetimeoriginal}' -d '%Y/raw images/%m %b/%Y_%m_%d/' P519473*.JPG);
+tdir_array=($tdir_string)
+echo ${#tdir_array[*]}
+echo ${tdir_array[*]}
+echo ${tdir_array[1]}
+
+# sets the delimeter for word splitting to , or newline
+# assigns tdir_string the value resulting from exiftool formatted filename date only
+# assigns tdir_array with the values from the tdir_string
+# read number elements in array
+# read all items in array
+# read item 1 in array

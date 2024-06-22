@@ -1,0 +1,1 @@
+git checkout <branch name> to switch branches to get to correct version. git add <filename> to stage a file and prepare for commit. git commit -m comment to commit changes to current branch. git branch displays the the current and available branches.
