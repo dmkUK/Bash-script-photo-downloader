@@ -22,13 +22,12 @@ fi
 function variable_print_outs ()
 {
 	echo from line $1
-	echo loop$loop.line$LINENO $camera_image_file $'\t' "$camera_image_file"
-	echo loop$loop.line$LINENO "$camera_dir"*."$filename_extension"
-	echo loop$loop.line$LINENO ${camera_image_file##"$camera_dir"}
-	echo loop$loop.line$LINENO $image_filename $'\t' "$image_filename"
-	echo loop$loop.line$LINENO $target_dir $'\t' "$target_dir"
-	echo loop$loop.line$LINENO "$camera_image_file" "$working_dir""$target_dir"$image_filename;
-	echo loop$loop.line$LINENO "$camera_image_file" "$backup_dir""$target_dir"$image_filename;
+	echo loop$loops.line$LINENO "$camera_dir"*."$filename_extension"
+	echo loop$loops.line$LINENO "$target_string"
+	echo loop$loops.line$LINENO "${target_array[loop2]}"
+	echo loop$loops.line$LINENO "$loop2"
+	echo loop$loops.line$LINENO "$camera_dir"${target_array[loop2]} "$working_dir"${target_array[((loop2+1))]}${target_array[loop2]}
+	echo loop$loops.line$LINENO "$camera_dir"${target_array[loop2]} "$backup_dir"${target_array[((loop2+1))]}${target_array[loop2]}
 	echo $'\n'
 }
 
@@ -64,49 +63,52 @@ fi
 
 camera_dir=$(findmnt -n -o target /dev/disk/by-id/*"$camera_name"*part1)"$camera_dir"
 backup_dir=$(findmnt -n -o target /dev/disk/by-label/"$backup_drive_label")"$backup_dir"
-loop1=1000; loop2=1
+loop1=1000; loop2=0
 
 echo Settings$'\n' backup_drive_label$'\t'"$backup_drive_label"$'\n' camera_name$'\t'$'\t'"$camera_name"$'\n' camera_dir$'\t'$'\t'"$camera_dir"$'\n' working_dir$'\t'$'\t'"$working_dir"$'\n' backup_dir$'\t'$'\t'"$backup_dir"$'\n' exiftool_date_pattern$'\t'"$exiftool_date_pattern"$'\n' image_types$'\t'$'\t'"$image_types"
 
 for filename_extension in $image_types
 do
-	for camera_image_file in "$camera_dir"*."$filename_extension"
+
+#	variable_print_outs "$LINENO"
+
+	for files in "$camera_dir"*."$filename_extension"
 	do
-		if (( "$loop2"==1 ))
-		then
-			[[ -a "$camera_image_file" ]] && echo $'\n'file extension $filename_extension exists on camera$'\n' || { echo $'\n'file extension $filename_extension does not exist on camera$'\n'; break; }
-		fi
-		image_filename=${camera_image_file##"$camera_dir"}
-		target_dir="$(exiftool -s3 -d "$exiftool_date_pattern" -DateTimeOriginal "$camera_image_file")"
-		loop=$(($loop1+$loop2 ))
-
-#		variable_print_outs "$LINENO"
-		echo -en '\e[2K'
-		rsync --mkpath --info=name2 -ah "$camera_image_file" "$working_dir""$target_dir"$image_filename | tr '\n' '\r'&
-		rsync --mkpath --info=name2 -ah "$camera_image_file" "$backup_dir""$target_dir"$image_filename | tr '\n' '\r'
-		wait
-
-		camera_file_list[$loop]="$(find "$camera_dir" -name "$image_filename")"$'\n'
-		working_file_list[$loop]="$(find "$working_dir""$target_dir" -name "$image_filename")"$'\n'
-		backup_file_list[$loop]="$(find "$backup_dir""$target_dir" -name "$image_filename")"$'\n'
-
-#		rsync --list-only "$camera_image_file" "$working_dir""$target_dir"$image_filename&
-#		rsync --list-only "$camera_image_file" "$backup_dir""$target_dir"$image_filename&
-
-#		diff -r "$working_dir""$target_dir" "$backup_dir""$target_dir" && echo working_dir and backup_dir subdirectories are sync\'d $'\n'
-
-		((loop2++))
+		[[ -a  "$files" ]] && { echo $'\n'file extension $filename_extension exists on camera$'\n'; break; } || { echo $'\n'file extension $filename_extension does not exist on camera$'\n'; break 2; }
 	done
-	((loop1+=1000)); loop2=1
+
+	old_IFS=$IFS; IFS=,$'\n'
+	target_string=$(exiftool -p '${filename},${datetimeoriginal}' -d '%Y/raw images/%m %b/%Y_%m_%d/' $camera_dir*."$filename_extension")
+	target_array=($target_string)
+	while  ((loop2<${#target_array[*]}))
+	do
+		loops=$(($loop1+$loop2))
+
+		echo -en '\e[2K'
+#		{ rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop2]} "$working_dir"${target_array[((loop2+1))]}${target_array[loop2]} | tr '\n' '\r'; }&
+#		( rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop2]} "$working_dir"${target_array[((loop2+1))]}${target_array[loop2]} | tr '\n' '\r'; )&
+#		rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop2]} "$working_dir"${target_array[((loop2+1))]}${target_array[loop2]} | tr '\n' '\r'&
+		rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop2]} "$working_dir"${target_array[((loop2+1))]}${target_array[loop2]} | tr '\n' '\r'
+		rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop2]} "$backup_dir"${target_array[((loop2+1))]}${target_array[loop2]} | tr '\n' '\r'
+
+#		wait
+
+		camera_file_list[$loops]="$(find "$camera_dir" -name "${target_array[loop2]}")"$'\n'
+		working_file_list[$loops]="$(find "$working_dir""$target_dir" -name "${target_array[loop2]}")"$'\n'
+		backup_file_list[$loops]="$(find "$backup_dir""$target_dir" -name "${target_array[loop2]}")"$'\n'
+
+		((loop2+=2))
+
+	done
+
+	echo ''
+	IFS=$old_IFS
+	((loop1+=1000)); loop2=0
 done
-# rsync --dry-run --mkpath --info name2 -ah "$working_dir" "$backup_dir"
+
 echo camera file list:$'\n' "${camera_file_list[*]##"$camera_dir"}" ${#camera_file_list[*]} files
 echo working file list:$'\n' "${working_file_list[*]}" ${#working_file_list[*]} files
 echo backup file list:$'\n' "${backup_file_list[*]}" ${#backup_file_list[*]} files
-
-# declare -p camera_file_list
-# declare -p working_file_list
-# declare -p backup_file_list
 
 
 #************************************************************************************************************
@@ -300,4 +302,3 @@ echo backup file list:$'\n' "${backup_file_list[*]}" ${#backup_file_list[*]} fil
 #  109)	SHELL BUILTIN COMMAND declare USED WITH -p AND name ARGUMENT DISPLAYS THE ATTRIBUTES AND VALUES OF THE VARIABLE
 #		declare -p backup_file_list
 # 			declare -a backup_file_list=([1001]=$'/media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF\n' [1002]=$'/media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421002.ORF\n' [1003]=$'/media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421003.ORF\n')
-
