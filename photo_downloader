@@ -11,7 +11,7 @@ backup_dir='/My Pictures/'
 image_types='ORF JPG jpg'
 exiftool_date_pattern='%Y/raw images/%m %b/%Y_%m_%d/'
 
-if [[ ${1}==test  ]]
+if [[ ${1} == "test"  ]]
 	then
 		echo testing
 		camera_dir=./DCIM/100OLYMP/
@@ -38,7 +38,7 @@ if [[ $(findmnt -n -o target /dev/disk/by-id/*"$camera_name"*part1) ]]
 		echo "$camera_name" camera is attached
 	else
 		echo "$camera_name" camera is not attached, exiting
-		if [[ ${1}==test ]]
+		if [[ ${1} == "test" ]]
 			then
 				echo testing
 				echo continuing with test directories
@@ -53,7 +53,7 @@ if [[ $(findmnt -n -o target /dev/disk/by-label/"$backup_drive_label") ]]
 	else
 		echo "$backup_drive_label" is not mounted
 
-		if [[ ${1}==test ]]
+		if [[ ${1} == "test" ]]
 			then
 				echo testing
 				echo continuing with test directories
