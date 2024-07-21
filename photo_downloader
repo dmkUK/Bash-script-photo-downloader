@@ -64,7 +64,7 @@ camera_dir=$(findmnt -n -o target /dev/disk/by-id/*"$camera_name"*part1)"$camera
 backup_dir=$(findmnt -n -o target /dev/disk/by-label/"$backup_drive_label")"$backup_dir"
 loop1=1000; loop2=0
 
-echo Settings$'\n' backup_drive_label$'\t'"$backup_drive_label"$'\n' camera_name$'\t'$'\t'"$camera_name"$'\n' camera_dir$'\t'$'\t'"$camera_dir"$'\n' working_dir$'\t'$'\t'"$working_dir"$'\n' backup_dir$'\t'$'\t'"$backup_dir"$'\n' exiftool_date_pattern$'\t'"$exiftool_date_pattern"$'\n' image_types$'\t'$'\t'"$image_types"
+echo Settings$'\n' backup_drive_label$'\t'"$backup_drive_label"$'\n' camera_name$'\t'$'\t'"$camera_name"$'\n' camera_dir$'\t'$'\t'"$camera_dir"$'\n' working_dir$'\t'$'\t'"$working_dir"$'\n' backup_dir$'\t'$'\t'"$backup_dir"$'\n' exiftool_date_pattern$'\t'"$exiftool_date_pattern"$'\n' image_types$'\t'$'\t'"$image_types"$'\n'
 
 for filename_extension in $image_types
 do
@@ -79,32 +79,40 @@ do
 	old_IFS=$IFS; IFS=,$'\n'
 	target_string=$(exiftool -p '${filename},${datetimeoriginal}' -d '%Y/raw images/%m %b/%Y_%m_%d/' $camera_dir*."$filename_extension")
 	target_array=($target_string)
+
+	echo ${*}; sleep 2
+
 	while  ((loop2<${#target_array[*]}))
 	do
 		loops=$(($loop1+$loop2))
 
 		echo -en '\e[2K'
-		echo ${*}
+
 		if [[ ${*} == *"--rsynca"* ]]
 			then
-				echo "approach a 1st rsync in {}&"
+				echo -e '\eM - approach a 1st rsync in {}&'
 				{ rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop2]} "$working_dir"${target_array[((loop2+1))]}${target_array[loop2]} | tr '\n' '\r'; }&
 				rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop2]} "$backup_dir"${target_array[((loop2+1))]}${target_array[loop2]} | tr '\n' '\r'
 				wait
 			elif [[ ${*} == *"--rsyncb"* ]]
 				then
-					echo "approach b 1st rsync in ()&"
+					echo -e '\eM - approach b 1st rsync in ()&'
 					( rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop2]} "$working_dir"${target_array[((loop2+1))]}${target_array[loop2]} | tr '\n' '\r'; )&
 					rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop2]} "$backup_dir"${target_array[((loop2+1))]}${target_array[loop2]} | tr '\n' '\r'
 					wait
 			elif [[ ${*} == *"--rsyncc"* ]]
 				then
-					echo "approach c 1st rsync terminated with &"
+					echo -e '\eM - approach c 1st rsync terminated with &'
 					rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop2]} "$working_dir"${target_array[((loop2+1))]}${target_array[loop2]} | tr '\n' '\r'&
 					rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop2]} "$backup_dir"${target_array[((loop2+1))]}${target_array[loop2]} | tr '\n' '\r'
 					wait
-			else
-				echo "no  parallel"
+			elif [[ ${*} == *"--rsyncd"* ]]
+				then
+					echo -e '\eM - approach d both rsync grouped in {} terminated with & no wait command'
+					{ rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop2]} "$working_dir"${target_array[((loop2+1))]}${target_array[loop2]} | tr '\n' '\r' }&
+					{ rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop2]} "$backup_dir"${target_array[((loop2+1))]}${target_array[loop2]} | tr '\n' '\r' }&
+				else
+				echo -e '\eM - no  parallel'
 				rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop2]} "$working_dir"${target_array[((loop2+1))]}${target_array[loop2]} | tr '\n' '\r'
 				rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop2]} "$backup_dir"${target_array[((loop2+1))]}${target_array[loop2]} | tr '\n' '\r'
 		fi
@@ -242,18 +250,18 @@ echo backup file list:$'\n' "${backup_file_list[*]}" ${#backup_file_list[*]} fil
 #		exiftool -p  -d "%Y/raw images/%m %b/%Y_%m_%d/" -DateTimeOriginal "/media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF"
 #		target_string="P421001.ORF,2024/raw images/04 Apr/2024_04_21/ NEWLINE P421002.ORF,2024/raw images/04 Apr/2024_04_21/" ETC
 #  81)	CREATE AN ARRAY $target_array FROM $target_string ALLOWING THE SCRIPT TO ACCESS INDIVIDUAL ELEMENTS FILENAMES ARE EVEN STARTING AT 0, PATHS ARE ODD STARTING AT 1.
-
-
-#  81)	USE ARITHMETIC EXPANSION AND SHELL ARITHMETIC TO COMBINE loop1 AND loop2 COUNTERS TO MAKE REFERRENCE FOR TRACING IN FUNCTION variable_print_outs(). ie loop1 = 1000 AND loop2 = 1 THE loop = 1001. BASH ONLY DOES INTEGER MATHS WHICH IS WHY loop1 STARTS AT 1000.
-
-#  78)	IF STATEMENT USES ARITHMETIC EXPANSION AND SHELL (INTEGER) ARITHMETIC TO TEST EQUALITY OF loop2 TO A VALUE OF 1.
-#  79)	USES SHELL PARAMETER EXPANSION TO REMOVE THE PATH FROM THE VARIABLE image_filename. ${ parameter##word } WHERE word IS PATTERN MATCHED TO parameter. IF THE MATCH IS MADE TO THE BEGINNING OF parameter THE RESULT IS THE DELETION OF THE LONGEST MATCHING PATTERN.
-#		image_filename = /media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF ## /media/$USER/OLY_E-30/DCIM/100OLYMP/
-#			image_filename = P421001.ORF
-
-#  84)  ECHO AN ESCAPE CODE TO CLEAR LINE '\033[2k' OR '\e[2k' WITH OPTIONS -n DO NOT OUTPUT THE TRAILIN NEWLINE -e ENABLEINTERPRETATION OF BACKSLASH ESCAPES. ALLOWS OVERWRITING OF LONGER rync OUTPUTS WHEN DIRECTORIES ARE CREATED AND FILES COPIED OR CHECKED
-#  85)	THE rsync COMMAND TO MAKE THE DIRECTORY PATH AND COPY FILES TO THE WORKING DIRECTORY USING THE TERMINATOR & TO INDICATE PLACING THE COMMAND IN THE BACKGROUND AND CONTINUING WITH ASYNCHRONOUS PROCESSING. THE OUTPUT IS PIPED THROUGH tr. THIS IS COMMAND TO TRANSLATE OR DELETE CHARACTERS AND IS USED TO REPLACE THE TRAILING newline ESCAPE CHARACTER FROM RSYNC OUTPUT WITH A CARRIAGE RETURN TO MAKE OUTPUT OVERWRITE ITSELF.
-#		rsync --mkpath --info name2 -ah "/media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF" "/home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF"| tr '\n' '\r'&
+#  83)	PRINT THE SHELL SPECIAL PARAMETER WHICH EXPANDS TO THE POSITIONAL PARAMETERS AS SEPERATE WORDS STARTING FROM ONE WHEN NOT DOUBLE QUOTED. THEN SLEEP FOR 2 SECONDS AS THIS LINE GETS OVERWRITTEN.
+#  85-121)	while LOOP TO READ CONTENTS OF ARRAY WHILE THE LOOP IS LESS THAN THE NUMBER OF ELEMENTS IN THE ARRAY AND rsync THE FILES. while CONDITION; do COMMANDS; done
+#  85)	OPEN while LOOP. CONDITION TO TEST IS WHILE INNER LOOP COUNTER $loop2 IS LESS THAN THE NUMBER OF ELEMENTS IN $target_array
+#  86)	do COMMANDS WITHIN LOOP
+#  87)	USE ARITHMATIC EXPANSION AND SHELL ARITHMATIC TO COMBINE $loop1 AND $loop2 COUNTERS AND ASSIGN TO $loops. USED TO CREATE ARRAYS FROM find FILES COMMAND AND IN function variable_print_outs(). ie IF $loop1 = 1000 AND $loop2 = 2 THEN $loopS = 1002. BASH ONLY DOES INTEGER MATHS WHICH IS WHY loop1 STARTS AT 1000.
+#  89)	PRINT A CLEAR LINE ESCAPE CHARACTER echo -en WHERE -e IS ALLOW INTERPRETAION OF BACKSLASH ESCAPE CHARACTERS AND -n IS SUPPRESS TRAILING NEWLINE. esc IS DECIMAL 27 OCTAL 033 HEX 0x1B C-ESCAPE \e AND CTRL-KEY ^[ . NOTE \e IS NOT GUARANTEED TO WORK IN ALL LANGUAGES AND COMPILERS. ESC[2K ERASE THE ENTIRE LINE (WILL NOT MOVE THE CURSOR - IT WILL REMAIN AT POSITION IT WAS AT BEFORE THE LINE WAS ERASED. USE \r CARRIAGE RETURN TO MOVE TOTHE START OF THE LINE). ALLOWS OVERWRITING OF LONGER rync OUTPUTS WHEN DIRECTORIES ARE CREATED AND FILES COPIED OR CHECKED. IE '\033[2k' AND '\e[2k' ARE EQUIVALENT ANSI ESCAPE SEQUENCES. THE CARRIAGE RETURN IS ACHEIVED WITH tr IN THE rsync COMMAND.
+#  91-113)	if; then; elif; else; fi CONDITIONAL TO TEST OUT DIFFERENT rsync STRATEGIES BASED ON COMMAND LINE ARGUMENTS IN POSITIONAL PARAMETERS.
+#  91)	IF SPECIAL PARAMETER REPRESENTING ALL POSITIONAL PARAMETERS CONTAINS THE STRING '--rsynca'
+#  92)	IF TRUE THEN DO COMMANDS
+#  93)	PRINT EXPLANATION OF rsync STRATEGY WHERE echo -e ENABLES BACKSLASH ESCAPE CHARACTERS AND '\eM' MOVES THE CURSOR UP ONE LINE OVERWRITING THE  PREVIOUS ECHO.
+#  94)	THE rsync COMMAND TO MAKE THE DIRECTORY PATH AND COPY FILES TO THE WORKING DIRECTORY. THE OUTPUT IS PIPED THROUGH tr. THIS IS COMMAND TO TRANSLATE OR DELETE CHARACTERS AND IS USED TO REPLACE THE TRAILING newline ESCAPE CHARACTER FROM RSYNC OUTPUT WITH A CARRIAGE RETURN TO MAKE OUTPUT OVERWRITE ITSELF. THE COMMANDS ARE GROUPED WITHIN {} AND THEN PUT INTO THE BACKGROUND WITH & TERMINATOR, ALLOWING THE SECOND rsync TO CONTINUE ASYNCHRONOUSLY.
+#		{ rsync --mkpath --info name2 -ah "/media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF" "/home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF"| tr '\n' '\r' }&
 #		-- mkpath		CREATE DESTINATION'S MISSING PATH COMPONENTS
 #		-- info name2		INFORMATION VERBOSITY
 #		-h --human readable	OUTPUT NUMBERS IN HUMAN READABLE FORMAT
@@ -265,72 +273,71 @@ echo backup file list:$'\n' "${backup_file_list[*]}" ${#backup_file_list[*]} fil
 #						-g	PRESERVE GROUP
 #						-o	PRESERVE OWNER
 #						-D	PRESERVE DEVICE / SPECIAL FILES
-#  86) rsync COMMAND FOR BACKUP DIRECTORY
+#  95)	rsync COMMAND FOR BACKUP DIRECTORY
 #		rsync --mkpath --info name2 -ah "/media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF" "/medis/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF" | tr '\n' '\r'
-#  87) wait COMMAND PAUSES THE SCRIPT UNTIL ALL BACKGROUND PROCESSES COMPLETE. ALTHOUGH THE SCRIPT IS QUICKER WITHOUT IT, OUTPUTS BECOME JUMBLED UP AS PROCESSES COMPLETE IN THE WRONG ORDER
-#  89)	CREATE A LIST OF THE FILES TO BE COPIED WITH A NEWLINE $'\n' IN AN ARRAY BY USING FIND COMMAND TO CONFIRM COPY.
+#  96)	wait COMMAND PAUSES THE SCRIPT UNTIL ALL BACKGROUND PROCESSES COMPLETE.
+#  97)	ELSE IF CONDITIONAL TO TEST FOR ARGUMENT '--rsyncb' IN POSITIONAL PARAMETERS
+#  98)	IF TRUE THEN DO COMMANDS
+#  99)	PRINT STRATEGY EXPLANATION
+#  100)	rsync | tr COMMANDS FOR WORKING GROUPED WITH () AND THEREFORE RUN IN SUBSHELL THEN MOVED TO BACKGROUND WITH & TERMINATOR
+#  101)	rsync | tr COMMANDS FOR BACKUP
+#  102)	wait COMMAND PAUSES FOR ALL BACKGROUND TASKS
+#  103)	ELSE IF CONDITIONAL TO TEST FOR ARGUMENT '--rsyncc' IN POSITIONAL PARAMETERS
+#  104)	IF TRUE THEN DO COMMANDS
+#  105)	PRINT STRATEGY EXPLANATION
+#  106)	rsync | tr COMMANDS FOR WORKING THEN MOVED TO BACKGROUND WITH & TERMINATOR
+#  107)	rsync | tr COMMANDS FOR BACKUP
+#  108)	wait COMMAND PAUSES FOR ALL BACKGROUND TASKS
+#  109)	ELSE IF CONDITIONAL TO TEST FOR ARGUMENT '--rsyncd' IN POSITIONAL PARAMETERS
+#  110)	IF TRUE THEN DO COMMANDS
+#  111)	PRINT STRATEGY EXPLANATION
+#  112)	rsync | tr COMMANDS FOR WORKING GROUPED WITH {} THEN MOVED TO BACKGROUND WITH & TERMINATOR
+#  113)	rsync | tr COMMANDS FOR BACKUP GROUPED WITH {} THEN MOVED TO BACKGROUND WITH & TERMINATOR
+
+#  114)	ELSE IF FALSE THEN DO COMMANDS
+#  115)	PRINT STRATEGY EXPLANATION
+#  116)	rsync | tr COMMANDS FOR WORKING
+#  117)	rsync | tr COMMANDS FOR BACKUP
+#  118)	CLOSE IF BLOCK
+#  120)	CREATE A LIST OF THE FILES TO BE COPIED WITH A NEWLINE $'\n' IN AN ARRAY BY USING FIND COMMAND TO CONFIRM COPY.
+#  		find PATH -name PATTERN RETURNS FILENAME WITH PATH
+#			-name TEST FOR BASE OF FILENAME (PATH REMOVED) TO MATCH PATTERN IN PATH
 #		find "/media/$USER/OLY_E-30/DCIM/100OLYMP" -name "P421001.ORF"
 #			/media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF
 #		camera_file_list[1001]="/media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF"$'\n'
-#  90)	CREATE A LIST OF THE FILES LOCATED ON WORKING SYSTEM WITH A NEWLINE $'\n' IN AN ARRAY BY USING FIND COMMAND
+#  121)	CREATE A LIST OF THE FILES LOCATED ON WORKING SYSTEM WITH A NEWLINE $'\n' IN AN ARRAY BY USING FIND COMMAND
 #		find "/home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21" -name "P421001.ORF"
 #			/home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF
 #		working_file_list[1001]="/home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF""$'\n'
-#  91)	CREATE A LIST OF THE FILES LOCATED ON BACKUP SYSTEM WITH A NEWLINE $'\n' IN AN ARRAY BY USING FIND COMMAND
+#  122)	CREATE A LIST OF THE FILES LOCATED ON BACKUP SYSTEM WITH A NEWLINE $'\n' IN AN ARRAY BY USING FIND COMMAND
 #		find "/media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21" -name "P421001.ORF"
 #			/media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF
 #		backup_file_list[1001]="/home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF""$'\n'
-#  93)	USING rsync --testonly TO PERFORM A TEST RUN OF rsync COMMAND
-#  94)	USING rsync --testonly TO PERFORM A TEST RUN OF rsync COMMAND
-#  96)	USE diff TO COMPARE CONTENTS OF WORKING AND BACKUP DIRECTORIES && IF SUCCESSFULL PRINT OUT THE DIRECTORIES SYNCHRONISED (USING \ TO ESCAPE THE SINGLE QUOTE AND PRINT IT LITERALLY)
-#		diff -r /home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21 /media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21
-#		success 
-#		print synchronised message
-#  98)	USE SHELL ARITHMETIC TO ADD 1 TO THE VALUE OF loop2 AT END OF LOOP
-#		loop2 = loop2 + 1
-#  99)	CLOSE LOOP2
-#  100)	USE SHELL ARITHMETIC TO ADD 1000 TO THE VALUE OF loop1 AND RESET loop1 TO 1
-#  101)	CLOSE LOOP1
-#  102)	TEST rsync COMPLETED STRUCTURE FROM working_dir TO backup_dir IN ONE GO. NOT KEEN ON THIS AS IT WILL RUN THROUGH ALL CHANGES MADE TO working_dir ALTHOUGH IT IS QUICKER.
-#		rsync --mkpath --info name2 -ah "/home/$USER/My Pictures/" "/media/$USER/Backup_Data/My Pictures/"
-#		-- mkpath		CREATE DESTINATION'S MISSING PATH COMPONENTS
-#		-- info name2		INFORMATION VERBOSITY
-#		-h --human readable	OUTPUT NUMBERS IN HUMAN READABLE FORMAT
-#		-a --archive		ARCHIVE MODE, IMPLIES
-#						-r	RECURSIVE
-#						-l	COPY LINKS
-#						-p	PRESERVE PERMISSIONS
-#						-t	PRESERVE MODIFICATION TIMES
-#						-g	PRESERVE GROUP
-#						-o	PRESERVE OWNER
-#						-D	PRESERVE DEVICE / SPECIAL FILES
-#  103)	PRINT OUT A SUMMARY LIST OF FILES ON THE CAMERA WHERE ${#name[*]} IS THE NUMBER OF ELEMENTS IN THE ARRAY camera_file_list
+#  124)	USE SHELL ARITHMETIC TO ADD 2 TO THE VALUE OF loop2 AT END OF LOOP. ADDING TWO BECAUSE THE ARRAY CONTAINS ALTERNATING FILENAMES AND PATHS AND WE WANT TO MOVE TO NEXT FILENAME.
+#		loop2 = loop2 + 2
+#  126)	CLOSE LOOP2
+#  128)	PRINT A BLANK LINE
+#  129)	RESET THE $IFS DELIMETER SPECIAL PARAMETER TO DEFAULT VALUE STORED IN $old_IFS
+#  130)	USE SHELL ARITHMETIC TO ADD 1000 TO THE VALUE OF loop1 AND RESET loop2 TO 0
+#  131)	CLOSE LOOP1
+#  133)	PRINT OUT A SUMMARY LIST OF FILES ON THE CAMERA USING SHELL PARAMETER EXPANSION TO REMOVE THE PATH FROM THE VARIABLE $camera_file_list[*]} ${ parameter##word } WHERE word IS PATTERN MATCHED TO parameter, IN THIS CASE THE VARIABLE $camera_dir.IF THE MATCH IS MADE TO THE BEGINNING OF parameter THE RESULT IS THE DELETION OF THE LONGEST MATCHING PATTERN. ${#name[*]} IS THE NUMBER OF ELEMENTS IN THE ARRAY camera_file_list
 #		"${/media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF\n /media/$USER/OLY_E-30/DCIM/100OLYMP/P421002.ORF\n /media/$USER/OLY_E-30/DCIM/100OLYMP/P421003.ORF\n ## "/media/$USER/OLY_E-30/DCIM/100OLYMP/"}" ${# /media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF\n /media/$USER/OLY_E-30/DCIM/100OLYMP/P421002.ORF\n /media/$USER/OLY_E-30/DCIM/100OLYMP/P421003.ORF\n}
 #			camera file list
 #			 P421001.ORF
 #			 P421002.ORF
 #			 P421003.ORF
 #			 3 files
-#  104)	PRINT OUT A SUMMARY LIST OF FILES IN THE WORKING DIRECTORY WHERE ${#name[*]} IS THE NUMBER OF ELEMENTS IN THE ARRAY working_file_list
+#  134)	PRINT OUT A SUMMARY LIST OF FILES IN THE WORKING DIRECTORY WHERE ${#name[*]} IS THE NUMBER OF ELEMENTS IN THE ARRAY working_file_list
 #		"${/home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF/n /home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421002.ORF/n /home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421003.ORF/n ## "/home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/"}" ${# /home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF/n /home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421002.ORF/n /home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421003.ORF/n}
 #			working file list
-#			 P421001.ORF
-#			 P421002.ORF
-#			 P421003.ORF
+#			 ./working/2024/raw images/04 Apr/2024_04_21/P421001.ORF
+#			 ./working/2024/raw images/04 Apr/2024_04_21/P421002.ORF
+#			 ./working/2024/raw images/04 Apr/2024_04_21/P421003.ORF
 #			 3 files
-#  105)	PRINT OUT A SUMMARY LIST OF FILES IN THE BACKUP DIRECTORY WHERE ${#name[*]} IS THE NUMBER OF ELEMENTS IN THE ARRAY working_file_list
+#  135)	PRINT OUT A SUMMARY LIST OF FILES IN THE BACKUP DIRECTORY WHERE ${#name[*]} IS THE NUMBER OF ELEMENTS IN THE ARRAY working_file_list
 #		"${/media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF/n /media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421002.ORF/n /media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421003.ORF/n ## "/media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21"}" ${# /media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF/n /media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421002.ORF/n /media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421003.ORF/n}
-#			working file list
-#			 P421001.ORF
-#			 P421002.ORF
-#			 P421003.ORF
+#			backup file list
+#			 ./backup/2024/raw images/04 Apr/2024_04_21/P421001.ORF
+#			 ./backup/2024/raw images/04 Apr/2024_04_21/P421002.ORF
+#			 ./backup/2024/raw images/04 Apr/2024_04_21/P421003.ORF
 #			 3 files
-#  107)	SHELL BUILTIN COMMAND declare USED WITH -p AND name ARGUMENT DISPLAYS THE ATTRIBUTES AND VALUES OF THE VARIABLE
-#		declare -p camera_file_list
-# 			declare -a camera_file_list=([1001]=$'/media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF\n' [1002]=$'/media/$USER/OLY_E-30/DCIM/100OLYMP/P421002.ORF\n' [1003]=$'/media/$USER/OLY_E-30/DCIM/100OLYMP/P421003.ORF\n')
-#  108)	SHELL BUILTIN COMMAND declare USED WITH -p AND name ARGUMENT DISPLAYS THE ATTRIBUTES AND VALUES OF THE VARIABLE
-#		declare -p working_file_list
-# 			declare -a working_file_list=([1001]=$'/home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF\n' [1002]=$'/home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421002.ORF\n' [1003]=$'/home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421003.ORF\n')
-#  109)	SHELL BUILTIN COMMAND declare USED WITH -p AND name ARGUMENT DISPLAYS THE ATTRIBUTES AND VALUES OF THE VARIABLE
-#		declare -p backup_file_list
-# 			declare -a backup_file_list=([1001]=$'/media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF\n' [1002]=$'/media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421002.ORF\n' [1003]=$'/media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421003.ORF\n')
