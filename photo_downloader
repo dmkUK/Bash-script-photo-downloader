@@ -109,9 +109,9 @@ do
 			elif [[ ${*} == *"--rsyncd"* ]]
 				then
 					echo -e '\eM - approach d both rsync grouped in {} terminated with & no wait command'
-					{ rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop2]} "$working_dir"${target_array[((loop2+1))]}${target_array[loop2]} | tr '\n' '\r' }&
-					{ rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop2]} "$backup_dir"${target_array[((loop2+1))]}${target_array[loop2]} | tr '\n' '\r' }&
-				else
+					{ rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop2]} "$working_dir"${target_array[((loop2+1))]}${target_array[loop2]} | tr '\n' '\r'; }&
+					{ rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop2]} "$backup_dir"${target_array[((loop2+1))]}${target_array[loop2]} | tr '\n' '\r'; }&
+			else
 				echo -e '\eM - no  parallel'
 				rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop2]} "$working_dir"${target_array[((loop2+1))]}${target_array[loop2]} | tr '\n' '\r'
 				rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop2]} "$backup_dir"${target_array[((loop2+1))]}${target_array[loop2]} | tr '\n' '\r'
@@ -133,6 +133,13 @@ done
 echo camera file list:$'\n' "${camera_file_list[*]##"$camera_dir"}" ${#camera_file_list[*]} files
 echo working file list:$'\n' "${working_file_list[*]}" ${#working_file_list[*]} files
 echo backup file list:$'\n' "${backup_file_list[*]}" ${#backup_file_list[*]} files
+
+if [[ ${1} == "test" ]]
+	then
+		echo deleting test directories
+			rm -rI ./backup ./working
+	fi
+
 
 
 #************************************************************************************************************
