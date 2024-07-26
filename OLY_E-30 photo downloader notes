@@ -663,11 +663,46 @@ time bash ./photo_downloader
 #		Page size (bytes): 4096
 #		Exit status: 0
 
+# Alternatively see ps, pstree & top commands.
 
+# use:
+bash -x ./photo_downloader to run in debug mode from the command line
+# Modify your script's header:
+#!/bin/bash -x
+# or within the script use:
+set -x
+# a discrete section of code can be debugged with:
+set -x
+# code block
+set +x
 
+# Using arrays to store exiftool output
+# =====================================
+
+# Each file is read by exiftool individualy and the output is terminated with a newline. The -p 'format' print format option allows spliting individual tags with commas
+
+$ exiftool -p '${filename},${datetimeoriginal}' -d '%Y/raw images/%m %b/%Y_%m_%d/' ./*.JPG
+# ANDY.JPG 2024/raw images/05 May/2024_05_19/
+# P6234828.JPG,2024/raw images/06 Jun/2024_06_23/
+# P6234829.JPG,2024/raw images/06 Jun/2024_06_23/
+# P6234830.JPG,2024/raw images/06 Jun/2024_06_23/
+# P6234831.JPG,2024/raw images/06 Jun/2024_06_23/
+# P6234832.JPG,2024/raw images/06 Jun/2024_06_23/
+# P6234833.JPG,2024/raw images/06 Jun/2024_06_23/
+# P6234834.JPG,2024/raw images/06 Jun/2024_06_23/
+# P6234835.JPG,2024/raw images/06 Jun/2024_06_23/
+# P6234836.JPG,2024/raw images/06 Jun/2024_06_23/
+# P6234837.JPG,2024/raw images/06 Jun/2024_06_23/
+#    11 image files read
+
+tdir_string=$(exiftool -p '${filename},${datetimeoriginal}' -d '%Y/raw images/%m %b/%Y_%m_%d/' ./*.JPG | tr '\n' ' ')
+
+# this example uses tr (translate) to modify the output. exiftool's newlines are changed to a single space but the spaces in the file paths cause word splitting due to $IFS.
+# $IFS is bourne shell variable containing a list of characters used as delimiters to seperate fields used in shell word splitting and expansion, default is space tab newline. This would split the filepaths used above due to the spaces. To get around this we change the $IFS parameter.
+# arrays are assigned via =() and referenced via ${variable_name[array_referrence]} and read in after word splitting.
 
 IFS=,$'\n';
-tdir_string=$(exiftool -p '${filename},${datetimeoriginal}' -d '%Y/raw images/%m %b/%Y_%m_%d/' P519473*.JPG);
+tdir_string=$(exiftool -p '${filename},${datetimeoriginal}' -d '%Y/raw images/%m %b/%Y_%m_%d/' ./*.JPG);
 tdir_array=($tdir_string)
 echo ${#tdir_array[*]}
 echo ${tdir_array[*]}
@@ -679,3 +714,19 @@ echo ${tdir_array[1]}
 # read number elements in array
 # read all items in array
 # read item 1 in array
+
+old_IFS=$IFS; IFS=,$'\n'
+target_string=$(exiftool -p '${filename},${datetimeoriginal}' -d '%Y/raw images/%m %b/%Y_%m_%d/' $camera_dir*."$filename_extension")
+target_array=($target_string)
+IFS=$old_IFS
+
+# Store the current value of $IFS in $old_IFS for easy resetting then change $IFS to comma or newline.
+
+# with another set of brackets the output can go straight into the array
+
+old_IFS=$IFS; IFS=,$'\n';
+target_array=($(exiftool -p '${filename},${datetimeoriginal}' -d '%Y/raw images/%m %b/%Y_%m_%d/' ./*.JPG));
+IFS=$old_IFS
+
+# using delimeters to split the words into the array correctly (as long as the filenames don't contain comma's or newlines).
+
