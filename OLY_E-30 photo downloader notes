@@ -730,3 +730,47 @@ IFS=$old_IFS
 
 # using delimeters to split the words into the array correctly (as long as the filenames don't contain comma's or newlines).
 
+# Testing file exists
+# ===================
+
+# exiftool will fail with "Error: File not found - ./DCIM/100OLYMP/*.jpg" if the filename does not exist and as a failed expansion of a glob will return the glob an un-needed loop is executed for the glob. ie in an empty directory:
+
+files=*
+echo $files
+# *
+
+for files in *
+do
+	echo $files
+done
+# *
+	
+# A for loop can be used to extract the first element of a list which can then be tested:
+
+for files in "$camera_dir"*."$filename_extension"
+	do
+	[[ -a  "$files" ]] && { echo $'\n'file extension $filename_extension exists on camera$'\n'; break; } || { echo $'\n'file extension $filename_extension does not exist on camera$'\n'; break 2; }
+	done
+	
+# This loop checks to see if the filename (which is the first member of the list expanded from "$camera_dir"*."$filename_extension") exists using [[ -a ]] and breaks out of this loop and the containing loop if it does not using break 2.
+
+	[[ -a "$camera_dir"*."$filename_extension" ]]
+# does not work because "The words between the [[ and ]] do not undergo word splitting and filename expansion".
+
+# An alternative is to use an array as follows:
+
+files=("$camera_dir"*."$filename_extension")
+[[ -a  "${files[0]}" ]] && { echo $'\n'file extension $filename_extension exists on camera$'\n'; } || { echo $'\n'file extension $filename_extension does not exist on camera$'\n'; break; }
+
+# This tests if the first member of the array is a file.
+# These methods are both posix compliant, whilst "null globbing" is not specified by POSIX but changes the globbing behaviour to "If set, Bash allows filename patterns which match no files to expand to a null string, rather than themselves."
+
+shopt -s nullglob
+for files in *
+do
+       echo $files
+done
+shopt -u nullglob
+
+# returns nothing in an empty directory. shopt -s is set -u unset. Turning off null globbing can avoid surprises when not needed...
+
