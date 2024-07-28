@@ -8,7 +8,7 @@ camera_name='OLYMPUS_E-30'
 camera_dir='/DCIM/100OLYMP/'
 working_dir='/home/My Home/My Pictures/'
 backup_dir='/My Pictures/'
-image_types='ORF JPG jpg'
+image_types='png ORF JPG jpg'
 exiftool_date_pattern='%Y/raw images/%m %b/%Y_%m_%d/'
 
 if [[ ${1} == "test"  ]]
@@ -23,7 +23,7 @@ function variable_print_outs ()
 {
 	echo from line $1
 	echo loop$loops.line$LINENO "$camera_dir"*."$filename_extension"
-	echo loop$loops.line$LINENO "$target_string"
+	echo loop$loops.line$LINENO "${target_array[*]}"
 	echo loop$loops.line$LINENO "${target_array[loop2]}"
 	echo loop$loops.line$LINENO "$loop2"
 	echo loop$loops.line$LINENO "$camera_dir"${target_array[loop2]} "$working_dir"${target_array[((loop2+1))]}${target_array[loop2]}
@@ -70,16 +70,16 @@ for filename_extension in $image_types
 do
 
 #	variable_print_outs "$LINENO"
-
+	unset target_array
 	for files in "$camera_dir"*."$filename_extension"
 	do
-		[[ -a  "$files" ]] && { echo $'\n'file extension $filename_extension exists on camera$'\n'; break; } || { echo $'\n'file extension $filename_extension does not exist on camera$'\n'; break 2; }
+		[[ -a  "$files" ]] && { echo $'\n'file extension $filename_extension exists on camera$'\n'; } || { echo $'\n'file extension $filename_extension does not exist on camera$'\n'; break; }
+		old_IFS=$IFS; IFS=,$'\n'
+		target_array=($(exiftool -p '${filename},${datetimeoriginal}' -d '%Y/raw images/%m %b/%Y_%m_%d/' $camera_dir*."$filename_extension"))
+		break
 	done
 
-	old_IFS=$IFS; IFS=,$'\n'
-	target_array=($(exiftool -p '${filename},${datetimeoriginal}' -d '%Y/raw images/%m %b/%Y_%m_%d/' $camera_dir*."$filename_extension"))
-
-
+#	variable_print_outs "$LINENO"
 	echo ${*}; sleep 2
 
 	while  ((loop2<${#target_array[*]}))
@@ -124,9 +124,9 @@ do
 		((loop2+=2))
 
 	done
-
+		IFS=$old_IFS
 	echo ''
-	IFS=$old_IFS
+	
 	((loop1+=1000)); loop2=0
 done
 
