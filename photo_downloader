@@ -8,8 +8,20 @@ camera_name='OLYMPUS_E-30'
 camera_dir='/DCIM/100OLYMP/'
 working_dir='/home/My Home/My Pictures/'
 backup_dir='/My Pictures/'
-image_types='png ORF JPG jpg'
+image_types=(png ORF JPG jpg)
 exiftool_date_pattern='%Y/raw images/%m %b/%Y_%m_%d/'
+
+function variable_print_outs ()
+{
+	echo from line $1
+	echo loop$loop.line$LINENO "$loop"
+	echo loop$loop.line$LINENO "$camera_dir"*."$filename_extension"
+	echo loop$loop.line$LINENO "${target_array[loop]}"
+	echo loop$loop.line$LINENO "$camera_dir"${target_array[loop]} "$working_dir"${target_array[((loop+1))]}${target_array[loop]}
+	echo loop$loop.line$LINENO "$camera_dir"${target_array[loop]} "$backup_dir"${target_array[((loop+1))]}${target_array[loop]}
+	echo loop$loop.line$LINENO ${#target_array[*]} ${target_array[*]}
+	echo $'\n'
+}
 
 if [[ ${1} == "test"  ]]
 	then
@@ -18,19 +30,6 @@ if [[ ${1} == "test"  ]]
 		working_dir=./working/
 		backup_dir=./backup/
 fi
-
-function variable_print_outs ()
-{
-	echo from line $1
-	echo loop$loops.line$LINENO "$camera_dir"*."$filename_extension"
-	echo loop$loops.line$LINENO "${target_array[*]}"
-	echo loop$loops.line$LINENO "${target_array[loop2]}"
-	echo loop$loops.line$LINENO "$loop2"
-	echo loop$loops.line$LINENO "$camera_dir"${target_array[loop2]} "$working_dir"${target_array[((loop2+1))]}${target_array[loop2]}
-	echo loop$loops.line$LINENO "$camera_dir"${target_array[loop2]} "$backup_dir"${target_array[((loop2+1))]}${target_array[loop2]}
-	echo $'\n'
-}
-
 
 if [[ $(findmnt -n -o target /dev/disk/by-id/*"$camera_name"*part1) ]]
 	then
@@ -62,77 +61,75 @@ fi
 
 camera_dir=$(findmnt -n -o target /dev/disk/by-id/*"$camera_name"*part1)"$camera_dir"
 backup_dir=$(findmnt -n -o target /dev/disk/by-label/"$backup_drive_label")"$backup_dir"
-loop1=1000; loop2=0
+loop=0
 
-echo Settings$'\n' backup_drive_label$'\t'"$backup_drive_label"$'\n' camera_name$'\t'$'\t'"$camera_name"$'\n' camera_dir$'\t'$'\t'"$camera_dir"$'\n' working_dir$'\t'$'\t'"$working_dir"$'\n' backup_dir$'\t'$'\t'"$backup_dir"$'\n' exiftool_date_pattern$'\t'"$exiftool_date_pattern"$'\n' image_types$'\t'$'\t'"$image_types"$'\n'
+echo Settings$'\n' backup_drive_label$'\t'"$backup_drive_label"$'\n' camera_name$'\t'$'\t'"$camera_name"$'\n' camera_dir$'\t'$'\t'"$camera_dir"$'\n' working_dir$'\t'$'\t'"$working_dir"$'\n' backup_dir$'\t'$'\t'"$backup_dir"$'\n' exiftool_date_pattern$'\t'"$exiftool_date_pattern"$'\n' image_types[*]$'\t'$'\t'"${image_types[*]}"$'\n'
 
-for filename_extension in $image_types
+unset target_array camera_file_list working_file_list backup_file_list
+old_IFS=$IFS; IFS=,$'\n'
+
+for filename_extension in ${image_types[*]}
 do
-
-#	variable_print_outs "$LINENO"
-	unset target_array
-	for files in "$camera_dir"*."$filename_extension"
-	do
-		[[ -a  "$files" ]] && { echo $'\n'file extension $filename_extension exists on camera$'\n'; } || { echo $'\n'file extension $filename_extension does not exist on camera$'\n'; break; }
-		old_IFS=$IFS; IFS=,$'\n'
-		target_array=($(exiftool -p '${filename},${datetimeoriginal}' -d '%Y/raw images/%m %b/%Y_%m_%d/' $camera_dir*."$filename_extension"))
-		break
-	done
-
-#	variable_print_outs "$LINENO"
-	echo ${*}; sleep 2
-
-	while  ((loop2<${#target_array[*]}))
-	do
-		loops=$(($loop1+$loop2))
-
-		echo -en '\e[2K'
-
-		if [[ ${*} == *"--rsynca"* ]]
-			then
-				echo -e '\eM - approach a 1st rsync in {}&'
-				{ rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop2]} "$working_dir"${target_array[((loop2+1))]}${target_array[loop2]} | tr '\n' '\r'; }&
-				rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop2]} "$backup_dir"${target_array[((loop2+1))]}${target_array[loop2]} | tr '\n' '\r'
-				wait
-			elif [[ ${*} == *"--rsyncb"* ]]
-				then
-					echo -e '\eM - approach b 1st rsync in ()&'
-					( rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop2]} "$working_dir"${target_array[((loop2+1))]}${target_array[loop2]} | tr '\n' '\r'; )&
-					rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop2]} "$backup_dir"${target_array[((loop2+1))]}${target_array[loop2]} | tr '\n' '\r'
-					wait
-			elif [[ ${*} == *"--rsyncc"* ]]
-				then
-					echo -e '\eM - approach c 1st rsync terminated with &'
-					rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop2]} "$working_dir"${target_array[((loop2+1))]}${target_array[loop2]} | tr '\n' '\r'&
-					rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop2]} "$backup_dir"${target_array[((loop2+1))]}${target_array[loop2]} | tr '\n' '\r'
-					wait
-			elif [[ ${*} == *"--rsyncd"* ]]
-				then
-					echo -e '\eM - approach d both rsync grouped in {} terminated with & no wait command'
-					{ rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop2]} "$working_dir"${target_array[((loop2+1))]}${target_array[loop2]} | tr '\n' '\r'; }&
-					{ rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop2]} "$backup_dir"${target_array[((loop2+1))]}${target_array[loop2]} | tr '\n' '\r'; }&
-			else
-				echo -e '\eM - no  parallel'
-				rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop2]} "$working_dir"${target_array[((loop2+1))]}${target_array[loop2]} | tr '\n' '\r'
-				rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop2]} "$backup_dir"${target_array[((loop2+1))]}${target_array[loop2]} | tr '\n' '\r'
-		fi
-
-		camera_file_list[$loops]="$(find "$camera_dir" -name "${target_array[loop2]}")"$'\n'
-		working_file_list[$loops]="$(find "$working_dir""$target_dir" -name "${target_array[loop2]}")"$'\n'
-		backup_file_list[$loops]="$(find "$backup_dir""$target_dir" -name "${target_array[loop2]}")"$'\n'
-
-		((loop2+=2))
-
-	done
-		IFS=$old_IFS
-	echo ''
+	echo 'file type is:' $filename_extension
+	files=($camera_dir*.$filename_extension)
+	[[ -a  "${files[0]}" ]] &&  echo $'\n'file extension $filename_extension exists on camera$'\n' || { echo $'\n'file extension $filename_extension does not exist on camera$'\n'; continue; }
 	
-	((loop1+=1000)); loop2=0
+	target_array+=($(exiftool -p '${filename},${datetimeoriginal}' -d '%Y/raw images/%m %b/%Y_%m_%d/' $camera_dir*."$filename_extension"))
 done
+
+while  ((loop<${#target_array[*]}))
+do
+	echo -en '\e[2K'
+
+#	echo -e '\eM - approach a 1st rsync in {}&'
+#	{ rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop]} "$working_dir"${target_array[((loop+1))]}${target_array[loop]} | tr '\n' '\r'; }&
+#	rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop]} "$backup_dir"${target_array[((loop+1))]}${target_array[loop]} | tr '\n' '\r'
+#	wait
+
+	if [[ ${*} == *"--rsynca"* ]]
+		then
+			echo -e '\eM - approach a 1st rsync in {}&'
+			{ rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop]} "$working_dir"${target_array[((loop+1))]}${target_array[loop]} | tr '\n' '\r'; }&
+				rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop]} "$backup_dir"${target_array[((loop+1))]}${target_array[loop]} | tr '\n' '\r'
+			wait
+		elif [[ ${*} == *"--rsyncb"* ]]
+			then
+				echo -e '\eM - approach b 1st rsync in ()&'
+				( rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop]} "$working_dir"${target_array[((loop+1))]}${target_array[loop]} | tr '\n' '\r'; )&
+				rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop]} "$backup_dir"${target_array[((loop+1))]}${target_array[loop]} | tr '\n' '\r'
+				wait
+		elif [[ ${*} == *"--rsyncc"* ]]
+			then
+				echo -e '\eM - approach c 1st rsync terminated with &'
+				rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop]} "$working_dir"${target_array[((loop+1))]}${target_array[loop]} | tr '\n' '\r'&
+				rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop]} "$backup_dir"${target_array[((loop+1))]}${target_array[loop]} | tr '\n' '\r'
+				wait
+		elif [[ ${*} == *"--rsyncd"* ]]
+			then
+				echo -e '\eM - approach d both rsync grouped in {} terminated with & no wait command'
+				{ rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop]} "$working_dir"${target_array[((loop+1))]}${target_array[loop]} | tr '\n' '\r'; }&
+				{ rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop]} "$backup_dir"${target_array[((loop+1))]}${target_array[loop]} | tr '\n' '\r'; }&
+		else
+			echo -e '\eM - no  parallel'
+			rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop]} "$working_dir"${target_array[((loop+1))]}${target_array[loop]} | tr '\n' '\r'
+			rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop]} "$backup_dir"${target_array[((loop+1))]}${target_array[loop]} | tr '\n' '\r'
+	fi
+
+
+
+
+	camera_file_list+=("$(find "$camera_dir" -name "${target_array[loop]}")"$'\n')
+	working_file_list+=("$(find "$working_dir" -name "${target_array[loop]}")"$'\n')
+	backup_file_list+=("$(find "$backup_dir" -name "${target_array[loop]}")"$'\n')
+	((loop+=2))
+done
+
+IFS=$old_IFS
 
 echo camera file list:$'\n' "${camera_file_list[*]##"$camera_dir"}" ${#camera_file_list[*]} files
 echo working file list:$'\n' "${working_file_list[*]}" ${#working_file_list[*]} files
 echo backup file list:$'\n' "${backup_file_list[*]}" ${#backup_file_list[*]} files
+
 
 if [[ ${1} == "test" ]]
 	then
@@ -169,7 +166,7 @@ if [[ ${1} == "test" ]]
 #  25)  PRINTS OUT THE LOOP VARIABLE COUNTER AND BASH VARIABLE $LINENO WHICH RETURNS THE LINE NUMBER OF THE CURRENT COMMAND IN THE SCRIPT AND THE LIST OF FILES ON THE CAMERA WITH THE SELECTED EXTENSION ie /DCIM/100OLYMP/P421001.ORF /DCIM/100OLYMP/P421002.ORF etc
 #  26)	PRINTS OUT THE VARIABLE FOR THE LIST OF FILES WITH PATHS TO BE WRITTEN
 #  27)  PRINTS OUT THE ARRAY VALUE FOR TARGET FILE WITH PATH AT THE CURRENT LOOP POINT
-#  28)  PRINTS OUT THE VALUE OF $loop2
+#  28)  PRINTS OUT THE VALUE OF $loop
 #  29)  PRINTS OUT THE VALUE OF THE CURRENT LOOPS TARGET FILE WITH PATH ON THE CAMERA AND THE TARGET ON WORKING DIRECTORY
 #  30)  PRINTS OUT THE VALUE OF THE CURRENT LOOPS TARGET FILE WITH PATH ON THE CAMERA AND THE TARGET ON BACKUP DIRECTORY
 #  31)  PRINTS OUT A BLANK LINE USING $'\n' NEWLINE ANSI-C QUOTE CHARACTER
@@ -216,7 +213,7 @@ if [[ ${1} == "test" ]]
 #		findmnt -n -o target /dev/disk/by-label/"Backup_Data"
 #			/media/$USER/Backup_Data
 #		backup_dir=/media/$USER/Backup_Data"/My Pictures/"
-#  65)	loop1 AND loop2 COUNT THE LOOPS FOR COPYING THE FILES. ORINGINALLY FOR TRACING IN THE FUNCTION variable_print_outs() BUT loop2 ALSO ALLOWS LIMITING SOME COMMANDS TO THE FIRST RUN OF THE LOOPS (LINE 55). SHELL ARITHMETIC REQUIRES INTEGERS IN ORDER TO CREATE A THIRD VARIABLE FOR THE COMBINED LOOP COUNT (loop) I STARTED loop1 AT 1000.
+#  65)	loop1 AND loop COUNT THE LOOPS FOR COPYING THE FILES. ORINGINALLY FOR TRACING IN THE FUNCTION variable_print_outs() BUT loop ALSO ALLOWS LIMITING SOME COMMANDS TO THE FIRST RUN OF THE LOOPS (LINE 55). SHELL ARITHMETIC REQUIRES INTEGERS IN ORDER TO CREATE A THIRD VARIABLE FOR THE COMBINED LOOP COUNT (loop) I STARTED loop1 AT 1000.
 #  67)	PRINTS OUT THE VARIABLES
 #		$backup_drive_label	=	Backup_Data
 #		$camera_name		=	OLYMPUS_E-30
@@ -224,12 +221,12 @@ if [[ ${1} == "test" ]]
 #		$working_dir		=	/home/My Home/My Pictures/
 #		$backup_dir		=	/media/$USER/Backup_Data/My Pictures/
 #		$exiftool_date_pattern	=	%Y/raw images/%m %b/%Y_%m_%d/
-#		$image_types		=	ORF JPG jpg
+#		$image_types[*]		=	ORF JPG jpg
 #  SEPERATED BY $'\n' NEWLINES OR $'\t' TAB SPACES
-#  69-123)	THE NESTED for LOOPS TO CYCLE THROUGH THE LIST OF IMAGE TYPES SPECIFIED IN $image_types THEN CHECK IF THE FILE EXTENSION EXISTS ON CAMERA. A while LOOP THEN LOOPS THROUGH THE ARRAY OF FILENAMES AND PATHS SO rsync CAN COPY THE FILES TO BOTH THE DESTINATION FOLDERS. THE for LOOP EXECUTES COMMANDS ONCE FOR EACH MEMBER OF THE LIST WORDS WITH THE VARIABLE NAME TAKING THE VALUE OF THE WORD MATCHED FOR THAT RUN OF THE LOOP. THE WHILE LOOP EXECUTES COMMANDS WHILST A CONDITION IS NOT MET.
+#  69-123)	THE NESTED for LOOPS TO CYCLE THROUGH THE LIST OF IMAGE TYPES SPECIFIED IN ${image_types[*]} THEN CHECK IF THE FILE EXTENSION EXISTS ON CAMERA. A while LOOP THEN LOOPS THROUGH THE ARRAY OF FILENAMES AND PATHS SO rsync CAN COPY THE FILES TO BOTH THE DESTINATION FOLDERS. THE for LOOP EXECUTES COMMANDS ONCE FOR EACH MEMBER OF THE LIST WORDS WITH THE VARIABLE NAME TAKING THE VALUE OF THE WORD MATCHED FOR THAT RUN OF THE LOOP. THE WHILE LOOP EXECUTES COMMANDS WHILST A CONDITION IS NOT MET.
 #		for NAME in WORDS; do COMMANDS; done
 #		while CONDITION; do COMMANDS; done
-#  69)	AT THE FIRST RUN OF THE LOOPS ie loop1 = 1000 AND loop2 = 1
+#  69)	AT THE FIRST RUN OF THE LOOPS ie loop1 = 1000 AND loop = 1
 #		for filename_extension in ORF JPG jpg
 #			$filename_extension=ORF
 #  72)	do COMMANDS WITHIN LOOP
@@ -258,9 +255,9 @@ if [[ ${1} == "test" ]]
 #		target_string="P421001.ORF,2024/raw images/04 Apr/2024_04_21/ NEWLINE P421002.ORF,2024/raw images/04 Apr/2024_04_21/" ETC
 #  83)	PRINT THE SHELL SPECIAL PARAMETER WHICH EXPANDS TO THE POSITIONAL PARAMETERS AS SEPERATE WORDS STARTING FROM ONE WHEN NOT DOUBLE QUOTED. THEN SLEEP FOR 2 SECONDS AS THIS LINE GETS OVERWRITTEN.
 #  85-121)	while LOOP TO READ CONTENTS OF ARRAY WHILE THE LOOP IS LESS THAN THE NUMBER OF ELEMENTS IN THE ARRAY AND rsync THE FILES. while CONDITION; do COMMANDS; done
-#  85)	OPEN while LOOP. CONDITION TO TEST IS WHILE INNER LOOP COUNTER $loop2 IS LESS THAN THE NUMBER OF ELEMENTS IN $target_array
+#  85)	OPEN while LOOP. CONDITION TO TEST IS WHILE INNER LOOP COUNTER $loop IS LESS THAN THE NUMBER OF ELEMENTS IN $target_array
 #  86)	do COMMANDS WITHIN LOOP
-#  87)	USE ARITHMATIC EXPANSION AND SHELL ARITHMATIC TO COMBINE $loop1 AND $loop2 COUNTERS AND ASSIGN TO $loops. USED TO CREATE ARRAYS FROM find FILES COMMAND AND IN function variable_print_outs(). ie IF $loop1 = 1000 AND $loop2 = 2 THEN $loopS = 1002. BASH ONLY DOES INTEGER MATHS WHICH IS WHY loop1 STARTS AT 1000.
+#  87)	USE ARITHMATIC EXPANSION AND SHELL ARITHMATIC TO COMBINE $loop1 AND $loop COUNTERS AND ASSIGN TO $loops. USED TO CREATE ARRAYS FROM find FILES COMMAND AND IN function variable_print_outs(). ie IF $loop1 = 1000 AND $loop = 2 THEN $loopS = 1002. BASH ONLY DOES INTEGER MATHS WHICH IS WHY loop1 STARTS AT 1000.
 #  89)	PRINT A CLEAR LINE ESCAPE CHARACTER echo -en WHERE -e IS ALLOW INTERPRETAION OF BACKSLASH ESCAPE CHARACTERS AND -n IS SUPPRESS TRAILING NEWLINE. esc IS DECIMAL 27 OCTAL 033 HEX 0x1B C-ESCAPE \e AND CTRL-KEY ^[ . NOTE \e IS NOT GUARANTEED TO WORK IN ALL LANGUAGES AND COMPILERS. ESC[2K ERASE THE ENTIRE LINE (WILL NOT MOVE THE CURSOR - IT WILL REMAIN AT POSITION IT WAS AT BEFORE THE LINE WAS ERASED. USE \r CARRIAGE RETURN TO MOVE TOTHE START OF THE LINE). ALLOWS OVERWRITING OF LONGER rync OUTPUTS WHEN DIRECTORIES ARE CREATED AND FILES COPIED OR CHECKED. IE '\033[2k' AND '\e[2k' ARE EQUIVALENT ANSI ESCAPE SEQUENCES. THE CARRIAGE RETURN IS ACHEIVED WITH tr IN THE rsync COMMAND.
 #  91-113)	if; then; elif; else; fi CONDITIONAL TO TEST OUT DIFFERENT rsync STRATEGIES BASED ON COMMAND LINE ARGUMENTS IN POSITIONAL PARAMETERS.
 #  91)	IF SPECIAL PARAMETER REPRESENTING ALL POSITIONAL PARAMETERS CONTAINS THE STRING '--rsynca'
@@ -319,12 +316,12 @@ if [[ ${1} == "test" ]]
 #		find "/media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21" -name "P421001.ORF"
 #			/media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF
 #		backup_file_list[1001]="/home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF""$'\n'
-#  124)	USE SHELL ARITHMETIC TO ADD 2 TO THE VALUE OF loop2 AT END OF LOOP. ADDING TWO BECAUSE THE ARRAY CONTAINS ALTERNATING FILENAMES AND PATHS AND WE WANT TO MOVE TO NEXT FILENAME.
-#		loop2 = loop2 + 2
-#  126)	CLOSE LOOP2
+#  124)	USE SHELL ARITHMETIC TO ADD 2 TO THE VALUE OF loop AT END OF LOOP. ADDING TWO BECAUSE THE ARRAY CONTAINS ALTERNATING FILENAMES AND PATHS AND WE WANT TO MOVE TO NEXT FILENAME.
+#		loop = loop + 2
+#  126)	CLOSE loop
 #  128)	PRINT A BLANK LINE
 #  129)	RESET THE $IFS DELIMETER SPECIAL PARAMETER TO DEFAULT VALUE STORED IN $old_IFS
-#  130)	USE SHELL ARITHMETIC TO ADD 1000 TO THE VALUE OF loop1 AND RESET loop2 TO 0
+#  130)	USE SHELL ARITHMETIC TO ADD 1000 TO THE VALUE OF loop1 AND RESET loop TO 0
 #  131)	CLOSE LOOP1
 #  133)	PRINT OUT A SUMMARY LIST OF FILES ON THE CAMERA USING SHELL PARAMETER EXPANSION TO REMOVE THE PATH FROM THE VARIABLE $camera_file_list[*]} ${ parameter##word } WHERE word IS PATTERN MATCHED TO parameter, IN THIS CASE THE VARIABLE $camera_dir.IF THE MATCH IS MADE TO THE BEGINNING OF parameter THE RESULT IS THE DELETION OF THE LONGEST MATCHING PATTERN. ${#name[*]} IS THE NUMBER OF ELEMENTS IN THE ARRAY camera_file_list
 #		"${/media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF\n /media/$USER/OLY_E-30/DCIM/100OLYMP/P421002.ORF\n /media/$USER/OLY_E-30/DCIM/100OLYMP/P421003.ORF\n ## "/media/$USER/OLY_E-30/DCIM/100OLYMP/"}" ${# /media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF\n /media/$USER/OLY_E-30/DCIM/100OLYMP/P421002.ORF\n /media/$USER/OLY_E-30/DCIM/100OLYMP/P421003.ORF\n}
