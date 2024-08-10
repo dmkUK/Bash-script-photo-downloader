@@ -67,14 +67,14 @@ echo Settings$'\n' backup_drive_label$'\t'"$backup_drive_label"$'\n' camera_name
 
 unset target_array camera_file_list working_file_list backup_file_list
 old_IFS=$IFS; IFS=,$'\n'
-
+# variable_print_outs "$LINENO"
 for filename_extension in ${image_types[*]}
 do
 	echo 'file type is:' $filename_extension
 	files=($camera_dir*.$filename_extension)
 	[[ -a  "${files[0]}" ]] &&  echo $'\n'file extension $filename_extension exists on camera$'\n' || { echo $'\n'file extension $filename_extension does not exist on camera$'\n'; continue; }
 	
-	target_array+=($(exiftool -p '${filename},${datetimeoriginal}' -d '%Y/raw images/%m %b/%Y_%m_%d/' $camera_dir*."$filename_extension"))
+	target_array+=($(exiftool -p '$filename,$datetimeoriginal' -d "$exiftool_date_pattern" $camera_dir*."$filename_extension"))
 done
 
 while  ((loop<${#target_array[*]}))
@@ -88,29 +88,29 @@ do
 
 	if [[ ${*} == *"--rsynca"* ]]
 		then
-			echo -e '\eM - approach a 1st rsync in {}&'
+			echo -e '\eM' ${*}' - 1st rsync in {}&'
 			{ rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop]} "$working_dir"${target_array[((loop+1))]}${target_array[loop]} | tr '\n' '\r'; }&
 				rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop]} "$backup_dir"${target_array[((loop+1))]}${target_array[loop]} | tr '\n' '\r'
 			wait
 		elif [[ ${*} == *"--rsyncb"* ]]
 			then
-				echo -e '\eM - approach b 1st rsync in ()&'
+				echo -e '\eM' ${*}' - 1st rsync in ()&'
 				( rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop]} "$working_dir"${target_array[((loop+1))]}${target_array[loop]} | tr '\n' '\r'; )&
 				rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop]} "$backup_dir"${target_array[((loop+1))]}${target_array[loop]} | tr '\n' '\r'
 				wait
 		elif [[ ${*} == *"--rsyncc"* ]]
 			then
-				echo -e '\eM - approach c 1st rsync terminated with &'
+				echo -e '\eM' ${*}' - 1st rsync terminated with &'
 				rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop]} "$working_dir"${target_array[((loop+1))]}${target_array[loop]} | tr '\n' '\r'&
 				rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop]} "$backup_dir"${target_array[((loop+1))]}${target_array[loop]} | tr '\n' '\r'
 				wait
 		elif [[ ${*} == *"--rsyncd"* ]]
 			then
-				echo -e '\eM - approach d both rsync grouped in {} terminated with & no wait command'
+				echo -e '\eM' ${*}' - both rsync grouped in {} terminated with & no wait command'
 				{ rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop]} "$working_dir"${target_array[((loop+1))]}${target_array[loop]} | tr '\n' '\r'; }&
 				{ rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop]} "$backup_dir"${target_array[((loop+1))]}${target_array[loop]} | tr '\n' '\r'; }&
 		else
-			echo -e '\eM - no  parallel'
+			echo -e '\eM' ${*}' - no  parallel'
 			rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop]} "$working_dir"${target_array[((loop+1))]}${target_array[loop]} | tr '\n' '\r'
 			rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop]} "$backup_dir"${target_array[((loop+1))]}${target_array[loop]} | tr '\n' '\r'
 	fi
@@ -236,53 +236,44 @@ if [[ ${1} == "test" ]]
 #  SEPERATED BY $'\n' NEWLINES OR $'\t' TAB SPACES
 #  68)	RESET SOME VARIABLES - target_array camera_file_list working_file_list backup_file_list - WHICH GET ADDED TO THEMSELVES IN ORDER TO APPEND EACH FILE TO THE ARRAY
 #  69)	$IFS IS BOURNE SHELL VARIABLE CONTAINING A LIST OF CHARACTERS USED AS DELIMITERS TO SEPERATE FIELDS USED IN SHELL WORD SPLITTING AND EXPANSION, DEFAULT IS SPACE TAB NEWLINE. STORE THE CURRENT VALUE IN $old_IFS FOR EASY RESETTING THEN CHANGE $IFS TO COMMA AND NEWLINE.
+#  70)	CALLS FUNCTION variable_print_outs WITH ARGUMENT "$LINENO" (THE BASH VARIABLE FOR THECURRENT LINE NUMBER OF THE SCRIPT WHICH BECOMES POSITIONAL PARAMETER $1 IN THE FUNCTION, IN THIS CASE 70. COMMENTED OUT TILL NEEDED.
 #  71-78)	 THE for LOOP EXECUTES COMMANDS ONCE FOR EACH MEMBER OF THE LIST WORDS WITH THE VARIABLE NAME TAKING THE VALUE OF THE WORD MATCHED FOR THAT RUN OF THE LOOP. 
 #		for NAME in WORDS; do COMMANDS; done
 #  CHECKS IF THE FILE EXTENSION EXISTS ON CAMERA AND THEN USES exiftool TO CREATE THE PATHS FOR THE FILES FROM METADATA AND APPEND THEM TO AN ARRAY. exiftool CAN BE CALLED ONCE WITH A LIST OF FILES TO READ AND OUTPUTS A LIST SEPERATED BY NEWLINES.
 # 71)	for LOOP TO CYCLE THROUGH THE IMAGE TYPES SPECIFIED IN ${image_types[*]} (ALL MEMBERS OF THE ARRAY)
 #		for filename_extension in png ORF JPG jpg
 #			$filename_extension=png
-# 72)	do COMMANDS
+# 72)	do COMMANDS WITHIN LOOP
 # 73)	PRINT OUT 'FILE TYPE IS: png'
-# 74)	CREATE AN ARRAY OF THE FILES WITH THEIR PATHS. BASH WILL PASS * AS AN ARGUMENT IF IT CAN'T BE EXPANDED. ie ./DCIM/100OLYMP/*.png IF THERE ARE NO .png FILES IN CAMERA.
+# 74)	CREATE AN ARRAY OF THE FILES WITH THEIR PATHS.
+#		files=(/media/$USER/OLY_E-30/DCIM/100OLYMP/*.png)
+#  OR IN TESTING
+#		files=(./DCIM/100OLYMP/*.png)
+#  BASH WILL PASS * AS AN ARGUMENT IF IT CAN'T BE EXPANDED ie IF THERE ARE NO .png FILES IN THE CAMERA OR TESTING DIRECTORY AND './DCIM/100OLYMP/*.png' WILL BECOME ONLY ELEMENT OF THE ARRAY.
 # 75)	ACCESS THE FIRST ELEMEMT OF THE ARRAY AND TEST IT TO SEE IF IT IS A FILE IN ORDER TO USE continue TO RESTART THE for LOOP AVOIDING UNNESCESSARY PROCESSING AND AVOID exiftool ERRORS.
 #		[[ -a ./DCIM/100OLYMP/*.png ]]
-#  TEST WITH RESERVED WORD [[ COMPOUND COMMMAND USING BASH CONDITIONAL EXPRESSION -a file TRUE (0) IF FILE EXISTS OR FALSE (1) IF IT DOES NOT. THE WORDS BETWEEN THE [[ AND ]] DO NOT UNDERGO WORD SPLITTING AND FILENAME EXPANSION BUT DOES PERFORM TILDE EXPANSION, PARAMETER AND VARIABLE EXPANSION, ARITHMETIC EXPANSION, COMMAND SUBSTITUTION, PROCESS SUBSTITUTION, AND QUOTE REMOVAL ON THOSE WORDS (THE EXPANSIONS THAT WOULD OCCUR IF THE WORDS WERE ENCLOSED IN DOUBLE QUOTES). THE TERMINATOR && CREATES AN 'AND' LIST OF COMMANDS WHERE SUBSEQUENT COMMANDS ARE EXECUTED IF THE FIRST COMMAND EXITS WITH A STATUS OF ZERO (SUCCESS).
-#  IF TEST IS TRUE PRINT OUT A NEWLINE AND EXTENSION EXISTS AND PROCEED WITH THE REST OF THE LOOP
-#  THE TERMINATOR || CREATES AN 'OR' LIST WHERE SUBSEQUENT COMMANDS ARE EXECUTED IF THE FIRST COMMAND EXITS WITH A STATUS OF NON-ZERO. THE {} AROUND THE 'OR COMMANDS GROUP THEM INTO A THE LIST TO BE EXECUTED IN THE CURRENT SHELL CONTEXT. NO SUBSHELL IS CREATED. THE SEMICOLON (OR NEWLINE) FOLLOWING LIST IS REQUIRED.
-# IF TEST IS FALSE PRINT OUT A NEWLINE AND FILE NAME DOES NOT EXIST AND continue TO THE START OF THE LOOP TO TEST THE NEXT FILE EXTENSION.
-
-***************************
-#  71-125)	THE NESTED for LOOPS TO CYCLE THROUGH THE LIST OF IMAGE TYPES SPECIFIED IN ${image_types[*]} THEN CHECK IF THE FILE EXTENSION EXISTS ON CAMERA. A while LOOP THEN LOOPS THROUGH THE ARRAY OF FILENAMES AND PATHS SO rsync CAN COPY THE FILES TO BOTH THE DESTINATION FOLDERS. THE for LOOP EXECUTES COMMANDS ONCE FOR EACH MEMBER OF THE LIST WORDS WITH THE VARIABLE NAME TAKING THE VALUE OF THE WORD MATCHED FOR THAT RUN OF THE LOOP. THE WHILE LOOP EXECUTES COMMANDS WHILST A CONDITION IS NOT MET.
-#		for NAME in WORDS; do COMMANDS; done
-#		while CONDITION; do COMMANDS; done
-#  69)	AT THE FIRST RUN OF THE LOOPS ie loop1 = 1000 AND loop = 1
-#		for filename_extension in ORF JPG jpg
-#			$filename_extension=ORF
-#  72)	do COMMANDS WITHIN LOOP
-#  73)	CALLS FUNCTION variable_print_outs WITH ARGUMENT "$LINENO" (THE BASH VARIABLE FOR THECURRENT LINE NUMBER OF THE SCRIPT WHICH BECOMES POSITIONAL PARAMETER $1 IN THE FUNCTION, IN THIS CASE 72
-#  74)		for files in /media/$USER/OLY_E-30/DCIM/100OLYMP/*.ORF
-#  ie A LIST OF ALL .ORF FILES IN 100OLYMP
-#  		$camera_image_file=/media/$USER/OLY_E-30/DCIM/100OLYMP/P0421001.ORF
-#  75-78)	AT THE START OF THE MIAN A SECOND FOR LOOP CHECKS IF FILE EXISTS.IF YES BREAK OUT OF LOOP AND CONTINUE, IF NO BREAK OUT OF BOTH LOOPS. WITHOUT THIS CHECK IF FILE DOES NOT EXIST THE STRING *.ORF ITSELF IS PASSED AND AN UNNESCESSARY RUN OF THE LOOP PERFORMED
-#  75)	do COMMANDS WITHIN LOOP
-#  76)	CONDITIONAL WHICH RETURNS A STATUS OF 0 SUCCESS OR 1 FAIL DEPENDANT ON THE EVALUATION OF [[ expression ]]. THE BASH CONDITIONAL EXPRESSION -a file RETURNS TRUE IF FILE EXISTS. THE PIPELINE OPERATORS && AND || ARE 'AND' AND 'OR' WHILST ; IS FOR THE CONSECUTIVE EXECUTION OF COMMANDS.
-#		[[ -a /media/$USER/OLY_E-30/DCIM/100OLYMP/*.ORF ]]
-#  RETURNS 0 (SUCCESS) WHEN FILE EXISTS ON CAMERA RETURNS 1 (FAIL) IF NOT
-#  		&& { echo NEWLINE file extension ORF exists on camera NEWLINE; break; }
-#  && (AND) PRINTS THE EXTENSION EXISTS AND BREAKS OUT OF THE LOOP
-#		|| { echo NEWLINE file extension ORF does not exist on camera NEWLINE; break 2; }
-#  || (OR) WHEN FILE DOES NOT EXIST, PRINTS FILE EXTENSION DOESNT EXIST MESSAGE AND BREAKS OUT OF 2 LOOP LEVELS.
-#  THE COMMANDS AFTER ARE GROUPED TOGETHER WITH {} EXECUTING THE LIST OF COMMANDS AS A UNIT IN THE CURRENT SHELL CONTEXT NOT A SUBSHELL.
-#  77)	CLOSE LOOP
-
-#  80)	USE exiftool TO READ THE METADATA IN ALL THE IMAGE FILES OF THE CURRENT TYPE, AND PLACE THE -FileName AND -DateTimeOriginal TAGS SEPARATED BY COMAS INTO target_array TO CREATE A DIRECTORY NAMING PATTERN. IN THE ARRAY, FILENAMES ARE EVEN STARTING AT 0, PATHS ARE ODD STARTING AT 1 ALLOWING THE SCRIPT TO ACCESS INDIVIDUAL ELEMENTS. exiftool -p FMTFILE (-printFormat) Print output in specified format -d -dateformat USING strftime SYNTAX WHERE
-#			%Y	-	YEAR AS DECIMAL INCLUDING CENTURY ie 2024
-#			%m	-	MONTH AS DECIMAL ie 01
-#			%b	-	MONTH AS SHORT STRING ie Jan
-#			%d	-	DAY OF MONTH AS DECIMAL ie 01
-#		exiftool -p  -d "%Y/raw images/%m %b/%Y_%m_%d/" -DateTimeOriginal "/media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF"
-#		target_string="P421001.ORF,2024/raw images/04 Apr/2024_04_21/ NEWLINE P421002.ORF,2024/raw images/04 Apr/2024_04_21/" ETC
+#  THE RESERVED WORD [[ IS A CONDITIONAL WHICH RETURNS A STATUS OF 0 SUCCESS OR 1 FAIL DEPENDANT ON THE EVALUATION OF [[ expression ]] COMPOUND COMMAND. THE BASH CONDITIONAL EXPRESSION -a file RETURNS TRUE (0) IF FILE EXISTS OR FALSE (1) IF IT DOES NOT. THE WORDS BETWEEN THE [[ AND ]] DO NOT UNDERGO WORD SPLITTING AND FILENAME EXPANSION BUT DOES PERFORM TILDE EXPANSION, PARAMETER AND VARIABLE EXPANSION, ARITHMETIC EXPANSION, COMMAND SUBSTITUTION, PROCESS SUBSTITUTION, AND QUOTE REMOVAL ON THOSE WORDS (THE EXPANSIONS THAT WOULD OCCUR IF THE WORDS WERE ENCLOSED IN DOUBLE QUOTES). THE PIPELINE OPERATORS && AND || ARE 'AND' AND 'OR' WHILST ; IS FOR THE CONSECUTIVE EXECUTION OF COMMANDS. THE TERMINATOR && CREATES AN 'AND' LIST OF COMMANDS WHERE SUBSEQUENT COMMANDS ARE EXECUTED IF THE FIRST COMMAND EXITS WITH A STATUS OF ZERO (SUCCESS).
+#		[[ -a /media/$USER/OLY_E-30/DCIM/100OLYMP/*.png ]]
+#		&&  echo $'\n'file extension png exists on camera
+#  IF TEST IS TRUE RETURNS 0 (SUCCESS) AND PRINT OUT A NEWLINE AND EXTENSION EXISTS AND PROCEED WITH THE REST OF THE LOOP
+#		|| { echo $'\n'file extension png does not exist on camera$'\n'; continue; }
+# IF TEST IS FALSE PRINT OUT A NEWLINE AND FILE NAME DOES NOT EXIST AND continue TO THE START OF THE LOOP TO TEST THE NEXT FILE EXTENSION. THE {} AROUND THE 'OR COMMANDS GROUP THEM INTO A THE LIST TO BE EXECUTED IN THE CURRENT SHELL CONTEXT. NO SUBSHELL IS CREATED. THE SEMICOLON (OR NEWLINE) FOLLOWING LIST IS REQUIRED.
+#  77)	USE exiftool WITH VARIABLE exiftool_date_pattern TO READ THE METADATA IN ALL THE IMAGE FILES OF THE CURRENT TYPE, AND PLACE THE -FileName AND -DateTimeOriginal TAGS SEPARATED BY COMAS INTO target_array TO CREATE A DIRECTORY NAMING PATTERN. IN THE ARRAY, FILENAMES ARE EVEN STARTING AT 0, PATHS ARE ODD STARTING AT 1 ALLOWING THE SCRIPT TO ACCESS INDIVIDUAL ELEMENTS.
+#		exiftool -d "%Y/raw images/%m %b/%Y_%m_%d/" -FileName -DateTimeOriginal ./DCIM/100OLYMP/P421001.ORF
+# RETURNS
+#		======== ./DCIM/100OLYMP/P421001.ORF
+#		File Name                       : P421001.ORF
+#		Date/Time Original              : 2024/raw images/04 Apr/2024_04_21/
+#  WHEREAS
+# 		exiftool -p FMTFILE (-printFormat) Print output in specified format WHERE TAG NAMES ARE PREFIXED BY A '$'. PERL EXPRESSIONS CAN BE USED BY ENCLOSING IN {} SEPERATED BY COLONS ie "${TAG;EXPRESSION}" 
+#	exiftool -p '$filename,$datetimeoriginal' -d "$exiftool_date_pattern" $camera_dir*."$filename_extension"
+#  RETRIEVES THE TAGS FileName and DateTimeOriginal BUT WITHOUT ALL THE FORMATTING SEPARATED BY COMMAS AND NEWLINES
+#		P421001.ORF,2024/raw images/04 Apr/2024_04_21/
+#		P421002.ORF,2024/raw images/04 Apr/2024_04_21/
+# THEREFORE TO APPEND THE OUTPUT OF exiftool TO THE ARRAY target_string USING THE '+=' OPERATOR:
+#		target_string+=("P421001.ORF,2024/raw images/04 Apr/2024_04_21/ NEWLINE P421002.ORF,2024/raw images/04 Apr/2024_04_21/") ETC
+#  78)	CLOSE FOR LOOP
+# 
 #  83)	PRINT THE SHELL SPECIAL PARAMETER WHICH EXPANDS TO THE POSITIONAL PARAMETERS AS SEPERATE WORDS STARTING FROM ONE WHEN NOT DOUBLE QUOTED. THEN SLEEP FOR 2 SECONDS AS THIS LINE GETS OVERWRITTEN.
 #  85-121)	while LOOP TO READ CONTENTS OF ARRAY WHILE THE LOOP IS LESS THAN THE NUMBER OF ELEMENTS IN THE ARRAY AND rsync THE FILES. while CONDITION; do COMMANDS; done
 #  85)	OPEN while LOOP. CONDITION TO TEST IS WHILE INNER LOOP COUNTER $loop IS LESS THAN THE NUMBER OF ELEMENTS IN $target_array
