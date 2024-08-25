@@ -19,7 +19,16 @@ function variable_print_outs ()
 	echo loop$loop.line$LINENO "${target_array[loop]}"
 	echo loop$loop.line$LINENO "$camera_dir"${target_array[loop]} "$working_dir"${target_array[((loop+1))]}${target_array[loop]}
 	echo loop$loop.line$LINENO "$camera_dir"${target_array[loop]} "$backup_dir"${target_array[((loop+1))]}${target_array[loop]}
-	echo loop$loop.line$LINENO ${#target_array[*]} ${target_array[*]}
+	echo loop$loop.line$LINENO "target array \"[*]\" " "${#target_array[*]}"$'\n'"${target_array[*]}"
+	echo loop$loop.line$LINENO "target array [*] "${#target_array[*]}$'\n'${target_array[*]}
+	echo loop$loop.line$LINENO "target array \"[@]\" " "${#target_array[@]}"$'\n'"${target_array[@]}"
+	echo loop$loop.line$LINENO "target array [@] "${#target_array[@]}$'\n'${target_array[@]}
+	echo loop$loop.line$LINENO "image types \"[*]\" ""${image_types[*]}" "[*]" ${image_types[*]}
+	echo loop$loop.line$LINENO "image types \"[@]\" ""${image_types[@]}" "[@]" ${image_types[@]}
+	echo loop$loop.line$LINENO "target array zero is" "${target_array[0]}"
+	echo loop$loop.line$LINENO "target array one is" "${target_array[1]}"
+	echo loop$loop.line$LINENO "IFS is" "${IFS@Q}"; echo "old IFS is" "${old_IFS@Q}"
+	echo loop$loop.line$LINENO "number of elemnets in target array is" "${#target_array[@]}"
 	echo $'\n'
 }
 
@@ -66,47 +75,48 @@ loop=0
 echo Settings$'\n' backup_drive_label$'\t'"$backup_drive_label"$'\n' camera_name$'\t'$'\t'"$camera_name"$'\n' camera_dir$'\t'$'\t'"$camera_dir"$'\n' working_dir$'\t'$'\t'"$working_dir"$'\n' backup_dir$'\t'$'\t'"$backup_dir"$'\n' exiftool_date_pattern$'\t'"$exiftool_date_pattern"$'\n' image_types[*]$'\t'$'\t'"${image_types[*]}"$'\n'
 
 unset target_array camera_file_list working_file_list backup_file_list
-old_IFS=$IFS; IFS=,$'\n'
-# variable_print_outs "$LINENO"
-for filename_extension in ${image_types[*]}
+
+for filename_extension in "${image_types[@]}"
 do
 	echo 'file type is:' $filename_extension
 	files=($camera_dir*.$filename_extension)
 	[[ -a  "${files[0]}" ]] &&  echo $'\n'file extension $filename_extension exists on camera$'\n' || { echo $'\n'file extension $filename_extension does not exist on camera$'\n'; continue; }
-	
+		
+	old_IFS=$IFS; IFS=,$'\n'
 	target_array+=($(exiftool -p '$filename,$datetimeoriginal' -d "$exiftool_date_pattern" $camera_dir*."$filename_extension"))
+	IFS=$old_IFS
 done
 
-while  ((loop<${#target_array[*]}))
+while  ((loop<${#target_array[@]}))
 do
 	echo -en '\e[2K'
 	if [[ ${*} == *"--rsynca"* ]]
 		then
 			echo -e '\eM' ${*}' - 1st rsync enclosed in {} terminated with &'
-			{ rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop]} "$working_dir"${target_array[((loop+1))]}${target_array[loop]} | tr '\n' '\r'; }&
-				rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop]} "$backup_dir"${target_array[((loop+1))]}${target_array[loop]} | tr '\n' '\r'
+			{ rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'; }&
+				rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
 			wait
 		elif [[ ${*} == *"--rsyncb"* ]]
 			then
 				echo -e '\eM' ${*}' - 1st rsync enclosed in () terminated with &'
-				( rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop]} "$working_dir"${target_array[((loop+1))]}${target_array[loop]} | tr '\n' '\r'; )&
-				rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop]} "$backup_dir"${target_array[((loop+1))]}${target_array[loop]} | tr '\n' '\r'
+				( rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'; )&
+				rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
 				wait
 		elif [[ ${*} == *"--rsyncc"* ]]
 			then
 				echo -e '\eM' ${*}' - 1st rsync terminated with &'
-				rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop]} "$working_dir"${target_array[((loop+1))]}${target_array[loop]} | tr '\n' '\r'&
-				rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop]} "$backup_dir"${target_array[((loop+1))]}${target_array[loop]} | tr '\n' '\r'
+				rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'&
+				rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
 				wait
 		elif [[ ${*} == *"--rsyncd"* ]]
 			then
 				echo -e '\eM' ${*}' - each rsync enclosed in {} terminated with & no wait command'
-				{ rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop]} "$working_dir"${target_array[((loop+1))]}${target_array[loop]} | tr '\n' '\r'; }&
-				{ rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop]} "$backup_dir"${target_array[((loop+1))]}${target_array[loop]} | tr '\n' '\r'; }&
+				{ rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'; }&
+				{ rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'; }&
 		else
 			echo -e '\eM' ${*}' - no  parallel'
-			rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop]} "$working_dir"${target_array[((loop+1))]}${target_array[loop]} | tr '\n' '\r'
-			rsync --mkpath --info=name2 -ah "$camera_dir"${target_array[loop]} "$backup_dir"${target_array[((loop+1))]}${target_array[loop]} | tr '\n' '\r'
+			rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
+			rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
 	fi
 
 	camera_file_list+=("$(find "$camera_dir" -name "${target_array[loop]}")"$'\n')
@@ -115,7 +125,7 @@ do
 	((loop+=2))
 done
 
-IFS=$old_IFS
+# IFS=$old_IFS
 
 echo camera file list:$'\n' "${camera_file_list[*]##"$camera_dir"}" ${#camera_file_list[*]} files
 echo working file list:$'\n' "${working_file_list[*]}" ${#working_file_list[*]} files

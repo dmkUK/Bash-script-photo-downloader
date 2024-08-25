@@ -699,6 +699,13 @@ tdir_string=$(exiftool -p '${filename},${datetimeoriginal}' -d '%Y/raw images/%m
 
 # this example uses tr (translate) to modify the output. exiftool's newlines are changed to a single space but the spaces in the file paths cause word splitting due to $IFS.
 # $IFS is bourne shell variable containing a list of characters used as delimiters to seperate fields used in shell word splitting and expansion, default is space tab newline. This would split the filepaths used above due to the spaces. To get around this we change the $IFS parameter.
+
+echo "${IFS@Q}"
+# where ${parameter@operator} is shell parameter expansion and Q "The expansion is a string that is the value of parameter quoted in a format that can be reused as input."
+# which will result in the following (defaults)
+# ' \t\n'
+# ie space tab newline
+
 # arrays are assigned via =() and referenced via ${variable_name[array_referrence]} and read in after word splitting.
 
 IFS=,$'\n';
@@ -729,6 +736,112 @@ target_array=($(exiftool -p '${filename},${datetimeoriginal}' -d '%Y/raw images/
 IFS=$old_IFS
 
 # using delimeters to split the words into the array correctly (as long as the filenames don't contain comma's or newlines).
+
+
+# "${array_name[@]}" or "${array_name[*]}"
+# ========================================
+
+# The manual states:
+# If the subscript is ‘@’ or ‘*’, the word expands to all members of the array name. These subscripts differ only when the word appears within double quotes. If the word is double-quoted, ${name[*]} expands to a single word with the value of each array member separated by the first character of the IFS variable, and ${name[@]} expands each element of name to a separate word. When there are no array members, ${name[@]} expands to nothing. If the double-quoted expansion occurs within a word, the expansion of the first parameter is joined with the beginning part of the original word, and the expansion of the last parameter is joined with the last part of the original word. This is analogous to the expansion of the special parameters ‘@’ and ‘*’.
+
+# If [*] is used within quotes ie "${array_name[*]}" the first character of $IFS is used to split the entire array into words as follows (note - by placing the re setting of $IFS at the start and the whole command within () a sub shell is created making the change temporary):
+
+(IFS=$'\n'; metadata=($(exiftool -p '${usercomment}' *.JPG)); echo "${metadata[*]}")
+
+# outputs
+
+#   3 image files read
+# Aaron Clarke batting for Marsden Cricket Club 2nd  XI v Flockton C.C. 1st XI at Lockout Park Flockton
+# Aaron Clarke batting for Marsden Cricket Club 2nd  XI v Flockton C.C. 1st XI at Lockout Park Flockton
+# Aaron Clarke batting for Marsden Cricket Club 2nd  XI v Flockton C.C. 1st XI at Lockout Park Flockton
+
+# the \n newline has been inserted, delimits the words and is interpreted by echo.
+# whereas [@] outputs all the elements of the array as one word:
+
+(IFS=$'\n'; metadata=($(exiftool -p '${usercomment}' *.JPG)); echo ${metadata[@]})
+
+# outputs
+
+#   3 image files read
+# Aaron Clarke batting for Marsden Cricket Club 2nd  XI v Flockton C.C. 1st XI at Lockout Park Flockton Aaron Clarke batting for Marsden Cricket Club 2nd  XI v Flockton C.C. 1st XI at Lockout Park Flockton Aaron Clarke batting for Marsden Cricket Club 2nd  XI v Flockton C.C. 1st XI at Lockout Park Flockton
+
+# note it is only the first character from $IFS which is used:
+
+(IFS=$'r\n'; metadata=($(exiftool -p '${usercomment}' *.JPG)); echo ${metadata[*]})
+
+# outputs
+#   3 image files read
+# Aa on Cla ke batting fo  Ma sden C icket Club 2nd  XI v Flockton C.C. 1st XI at Lockout Pa k Flockton Aa on Cla ke batting fo  Ma sden C icket Club 2nd  XI v Flockton C.C. 1st XI at Lockout Pa k Flockton Aa on Cla ke batting fo  Ma sden C icket Club 2nd  XI v Flockton C.C. 1st XI at Lockout Pa k Flockton
+
+# example where $IFS is default space tab newline
+
+array=(1 2 fun town "toy town")
+echo "${array}"
+echo ${array}
+echo "${array[0]}"
+echo ${array[0]}
+echo "${array[0]}"
+echo "${array[3]}"
+echo ${array[3]}
+echo "${array[*]}"
+echo ${array[*]}
+echo "${array[@]}"
+echo ${array[@]}
+
+# results in
+
+# 1
+# 1
+# 1
+# 1
+# 1
+# town
+# town
+# 1 2 fun town toy town
+# 1 2 fun town toy town
+# 1 2 fun town toy town
+# 1 2 fun town toy town
+
+# example where $IFS is changed to newline tab space
+
+(IFS=$'\n$\t '; array=(1 2 fun town "toy town"); echo '# '"${array}"; echo '# '${array}; echo '# '"${array[0]}"; echo '# '${array[0]}; echo '# '"${array[0]}"; echo '# '"${array[3]}"; echo '# '${array[3]}; echo '# '"${array[*]}"; echo '# '${array[*]}; echo '# '"${array[@]}"; echo '# '${array[@]})
+
+# results in
+
+# 1
+# 1
+# 1
+# 1
+# 1
+# town
+# town
+# 1
+2
+fun
+town
+toy town
+# 1 2 fun town toy town
+# 1 2 fun town toy town
+# 1 2 fun town toy town
+
+# alternatively
+
+list=(1 2 3 four 'number five')
+for i in "${list[@]}"; do echo "example.$i"; done
+
+# outputs
+
+# example.1
+# example.2
+# example.3
+# example.four
+# example.number five
+
+for i in "${LIST[*]}"; do echo "example.$i"; done
+
+# outputs
+# example.1 2 3 four number five
+
 
 # Testing file exists
 # ===================
