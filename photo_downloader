@@ -92,28 +92,29 @@ if [[ ${*} == *"--batch"* ]]
 then
 	until ((loop>${#target_array[@]}))
 	do
-		echo "${target_array[((loop+1))]}" "${target_array[((loop-1))]}"
+#		echo "${target_array[((loop+1))]}" "${target_array[((loop-1))]}"
 
 		if [[ "${target_array[((loop+1))]}" != "${target_array[((loop-1))]}" ]]
 		then
 			if ((loop != 0))
 				then
-				echo different
-				echo rsync parameters $file_list  "$working_path" "$backup_path"
-				{ rsync --mkpath --info=name2 -ah $file_list "$working_path" | tr '\n' '\n'; }&
-				rsync --mkpath --info=name2 -ah $file_list "$backup_path" | tr '\n' '\n'
+#				echo different
+#				echo rsync parameters $file_list  "$working_path" "$backup_path"
+				{ rsync --mkpath --info=name2 -ah $file_list "$working_path" | tr '\n' '\r'; }&
+				rsync --mkpath --info=name2 -ah $file_list "$backup_path" | tr '\n' '\r'
 				wait
 			fi
 			working_path="$working_dir""${target_array[((loop+1))]}"
 			backup_path="$backup_dir""${target_array[((loop+1))]}"
 			file_list="$camera_dir""${target_array[loop]}"
-#			echo "$camera_dir""${target_array[loop]}"
+			echo "$camera_dir""${target_array[loop]}"
 #			echo file is "$file_list"
 #			echo working path is "$working_path"
 #			echo backup path is "$backup_path"
 		else
-			echo same
+#			echo same
 			file_list+=" ""$camera_dir""${target_array[loop]}"
+			echo "$camera_dir""${target_array[loop]}"
 #			echo file is "$file_list"
 #			echo working path is "$working_path"
 #			echo backup path is "$backup_path"
@@ -122,7 +123,7 @@ then
 		((loop+=2))
 	done
 
-exit
+# exit
 # variable_print_outs $LINENO
 fi
 
@@ -154,10 +155,14 @@ do
 				echo -e '\eM' ${*}' - each rsync enclosed in {} terminated with & no wait command'
 				{ rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'; }&
 				{ rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'; }&
+		elif [[ ${*} == *"--none"* ]]
+			then
+				echo -e '\eM' ${*}' - no  parallel'
+				rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
+				rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
 		else
-			echo -e '\eM' ${*}' - no  parallel'
-			rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
-			rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
+			echo breaking out
+			break
 	fi
 
 #	camera_file_list+=("$(find "$camera_dir" -name "${target_array[loop]}")"$'\n')
@@ -165,18 +170,18 @@ do
 #	backup_file_list+=("$(find "$backup_dir" -name "${target_array[loop]}")"$'\n')
 	((loop+=2))
 done
-exit
+
 # IFS=$old_IFS
 
-echo camera file list:$'\n' "${camera_file_list[*]##"$camera_dir"}" ${#camera_file_list[*]} files
-echo working file list:$'\n' "${working_file_list[*]}" ${#working_file_list[*]} files
-echo backup file list:$'\n' "${backup_file_list[*]}" ${#backup_file_list[*]} files
+# echo camera file list:$'\n' "${camera_file_list[*]##"$camera_dir"}" ${#camera_file_list[*]} files
+# echo working file list:$'\n' "${working_file_list[*]}" ${#working_file_list[*]} files
+# echo backup file list:$'\n' "${backup_file_list[*]}" ${#backup_file_list[*]} files
 
 
 if [[ ${1} == "test" ]]
 	then
 		echo deleting test directories
-			rm -rI ./backup ./working
+			rm -r ./backup ./working
 	fi
 
 
