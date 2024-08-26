@@ -887,3 +887,113 @@ shopt -u nullglob
 
 # returns nothing in an empty directory. shopt -s is set -u unset. Turning off null globbing can avoid surprises when not needed...
 
+# Subshells
+============
+
+# Subshells (along with functions using local) can be used to keep a variables scope local ie
+
+(var=blue; echo colour is "$var"); echo colour is "$var"
+
+# outputs
+# colour is blue
+# colour is 
+
+# This comes at a cost though. Placing echo in a sub shell outputing to the null device (esentially nowhere) and looping 10,000 times:
+
+time for((i=0;i<10000;i++)); do echo "$(echo hello)"; done >/dev/null 
+
+# outputs
+# real    0m25.854s
+# user    0m6.460s
+# sys     0m18.629s
+
+# whereas in the same shell
+
+time for((i=0;i<10000;i++)); do echo hello; done >/dev/null
+
+# real    0m0.279s
+# user    0m0.248s
+# sys     0m0.025s
+
+# per iteration of the loop that is a difference of:
+# real 0.0025575
+# user 0.0006212
+# sys  0.0018604
+
+# similarly using bash shell parameter expansion versus calling an external programme in a subshell 10,000 times and echo the reult to device null
+
+MyPath="path/name.ext" 
+time for((i=0;i<10000;i++)); do echo "$(basename ${MyPath} )"; done >/dev/null 
+time for((i=0;i<10000;i++)); do echo "${MyPath##*/}"; done >/dev/null  
+
+# real	0m52.569s
+# user	0m13.093s
+# sys	0m35.512s
+
+# real	0m0.422s
+# user	0m0.399s
+# sys	0m0.005s
+
+# per iteration of the loop that is a difference of:
+# real 0.0052147
+# user 0.0012694
+# sys  0.0035507
+
+# Grouping the files to reduce rsync calls
+# =========================================
+
+# rsync can take multiple files ad input
+
+rsync -a /dir/file1 /dir/file2 /dir/
+
+# rsync can process a list of files with the files-from option
+
+echo $var | rsync -a --files from=- /dir /dir
+
+#  --files-from=FILE	Using  this option allows you to specify the exact list of files to transfer (as read from the specified FILE or '-' for standard input).   It  also  tweaks the default behavior of rsync to make transferring just the specified files and directories easier:
+
+# to group the files by their path using a while loop to iterate through the members of target_array where even is filenames and odd is paths
+# a conditional is used to check if the file path is different from the previous file. If the loop is not the first iteration (when the file is different from nothing) this is where the rsync copies the files. In any case create path and file_list variables. If the file is the same as the previous one append the value of camera_dir and target_array for the current loop -1 (file name) to file_list.
+
+
+
+until ((loop>${#target_array[@]}))
+do
+	echo "${target_array[((loop+1))]}" "${target_array[((loop-1))]}"
+
+	if [[ "${target_array[((loop+1))]}" != "${target_array[((loop-1))]}" ]]
+	then
+		if ((loop != 0))
+			then
+			echo different
+			echo rsync parameters $file_list  "$working_path" "$backup_path"
+			rsync --mkpath -ah $file_list "$working_path"&
+			rsync --mkpath -ah $file_list "$backup_path"
+			wait
+		fi
+		working_path="$working_dir""${target_array[((loop+1))]}"
+		backup_path="$backup_dir""${target_array[((loop+1))]}"
+		file_list="$camera_dir""${target_array[loop]}"
+		echo "$camera_dir""${target_array[loop]}"
+		echo file is "$file_list"
+		echo working path is "$working_path"
+		echo backup path is "$backup_path"
+	else
+		echo same
+		file_list+=" ""$camera_dir""${target_array[loop]}"
+		echo file is "$file_list"
+		echo working path is "$working_path"
+		echo backup path is "$backup_path"
+	fi
+	echo $loop
+	((loop+=2))
+done
+
+# could use an array for file_list to avoid word splitting errors over filenames with spaces etc
+
+file_list+=("$camera_dir""${target_array[((loop-1))]}")
+
+# note don't need the space anymore
+# rsync command becomes
+
+rsync --mkpath -ah "${file_list[@]}" "$path"

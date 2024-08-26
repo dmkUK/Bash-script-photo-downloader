@@ -81,11 +81,52 @@ do
 	echo 'file type is:' $filename_extension
 	files=($camera_dir*.$filename_extension)
 	[[ -a  "${files[0]}" ]] &&  echo $'\n'file extension $filename_extension exists on camera$'\n' || { echo $'\n'file extension $filename_extension does not exist on camera$'\n'; continue; }
-		
+
 	old_IFS=$IFS; IFS=,$'\n'
 	target_array+=($(exiftool -p '$filename,$datetimeoriginal' -d "$exiftool_date_pattern" $camera_dir*."$filename_extension"))
 	IFS=$old_IFS
+	
 done
+
+if [[ ${*} == *"--batch"* ]]
+then
+	until ((loop>${#target_array[@]}))
+	do
+		echo "${target_array[((loop+1))]}" "${target_array[((loop-1))]}"
+
+		if [[ "${target_array[((loop+1))]}" != "${target_array[((loop-1))]}" ]]
+		then
+			if ((loop != 0))
+				then
+				echo different
+				echo rsync parameters $file_list  "$working_path" "$backup_path"
+				{ rsync --mkpath --info=name2 -ah $file_list "$working_path" | tr '\n' '\n'; }&
+				rsync --mkpath --info=name2 -ah $file_list "$backup_path" | tr '\n' '\n'
+				wait
+			fi
+			working_path="$working_dir""${target_array[((loop+1))]}"
+			backup_path="$backup_dir""${target_array[((loop+1))]}"
+			file_list="$camera_dir""${target_array[loop]}"
+#			echo "$camera_dir""${target_array[loop]}"
+#			echo file is "$file_list"
+#			echo working path is "$working_path"
+#			echo backup path is "$backup_path"
+		else
+			echo same
+			file_list+=" ""$camera_dir""${target_array[loop]}"
+#			echo file is "$file_list"
+#			echo working path is "$working_path"
+#			echo backup path is "$backup_path"
+		fi
+#		echo $loop
+		((loop+=2))
+	done
+
+exit
+# variable_print_outs $LINENO
+fi
+
+
 
 while  ((loop<${#target_array[@]}))
 do
@@ -119,12 +160,12 @@ do
 			rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
 	fi
 
-	camera_file_list+=("$(find "$camera_dir" -name "${target_array[loop]}")"$'\n')
-	working_file_list+=("$(find "$working_dir" -name "${target_array[loop]}")"$'\n')
-	backup_file_list+=("$(find "$backup_dir" -name "${target_array[loop]}")"$'\n')
+#	camera_file_list+=("$(find "$camera_dir" -name "${target_array[loop]}")"$'\n')
+#	working_file_list+=("$(find "$working_dir" -name "${target_array[loop]}")"$'\n')
+#	backup_file_list+=("$(find "$backup_dir" -name "${target_array[loop]}")"$'\n')
 	((loop+=2))
 done
-
+exit
 # IFS=$old_IFS
 
 echo camera file list:$'\n' "${camera_file_list[*]##"$camera_dir"}" ${#camera_file_list[*]} files
