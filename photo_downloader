@@ -155,14 +155,10 @@ do
 				echo -e '\eM' ${*}' - each rsync enclosed in {} terminated with & no wait command'
 				{ rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'; }&
 				{ rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'; }&
-		elif [[ ${*} == *"--none"* ]]
-			then
-				echo -e '\eM' ${*}' - no  parallel'
-				rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
-				rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
-		else
-			echo breaking out
-			break
+		else [[ ${*} == *"--none"* ]]
+			echo -e '\eM' ${*}' - no  parallel'
+			rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
+			rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
 	fi
 
 #	camera_file_list+=("$(find "$camera_dir" -name "${target_array[loop]}")"$'\n')
