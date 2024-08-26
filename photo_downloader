@@ -93,28 +93,28 @@ then
 	until ((loop>${#target_array[@]}))
 	do
 #		echo "${target_array[((loop+1))]}" "${target_array[((loop-1))]}"
-
 		if [[ "${target_array[((loop+1))]}" != "${target_array[((loop-1))]}" ]]
 		then
 			if ((loop != 0))
 				then
 #				echo different
 #				echo rsync parameters $file_list  "$working_path" "$backup_path"
-				{ rsync --mkpath --info=name2 -ah $file_list "$working_path" | tr '\n' '\r'; }&
-				rsync --mkpath --info=name2 -ah $file_list "$backup_path" | tr '\n' '\r'
+				echo 'transferring to '"$working_path"' and '"$backup_path"
+				rsync --mkpath -ah $file_list "$working_path"&
+				rsync --mkpath -ah $file_list "$backup_path"
 				wait
 			fi
 			working_path="$working_dir""${target_array[((loop+1))]}"
 			backup_path="$backup_dir""${target_array[((loop+1))]}"
 			file_list="$camera_dir""${target_array[loop]}"
-			echo "$camera_dir""${target_array[loop]}"
+#			echo "$camera_dir""${target_array[loop]}"
 #			echo file is "$file_list"
 #			echo working path is "$working_path"
 #			echo backup path is "$backup_path"
 		else
 #			echo same
 			file_list+=" ""$camera_dir""${target_array[loop]}"
-			echo "$camera_dir""${target_array[loop]}"
+#			echo "$camera_dir""${target_array[loop]}"
 #			echo file is "$file_list"
 #			echo working path is "$working_path"
 #			echo backup path is "$backup_path"
