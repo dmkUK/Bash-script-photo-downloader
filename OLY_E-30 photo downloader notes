@@ -997,3 +997,108 @@ file_list+=("$camera_dir""${target_array[((loop-1))]}")
 # rsync command becomes
 
 rsync --mkpath -ah "${file_list[@]}" "$path"
+
+# tr, command substitution and shell parameter expansion to remove the trailing /n from the rsync command output.
+================================================================================================================
+
+time while (( i < 100 )); do rsync --mkpath --info=name2 ./*.JPG ./test/; rm -r test; (( i+=1 )); done
+# created 1 directory for ./test
+# ANDY.JPG
+# P6234828.JPG
+# P6234829.JPG
+# P6234830.JPG
+# P6234831.JPG
+# P6234832.JPG
+# P6234833.JPG
+# P6234834.JPG
+# P6234835.JPG
+# P6234836.JPG
+# P6234837.JPG
+
+# real	1m15.140s
+# user	0m16.954s
+# sys	0m40.187s
+
+
+time while (( i < 100 )); do echo $(rsync --mkpath --info=name2 ./*.JPG ./test/); rm -r test; (( i+=1 )); done
+# created 1 directory for ./test ANDY.JPG P6234828.JPG P6234829.JPG P6234830.JPG P6234831.JPG P6234832.JPG P6234833.JPG P6234834.JPG P6234835.JPG P6234836.JPG P6234837.JPG
+
+# real	1m17.994s
+# user	0m19.444s
+# sys	0m46.363s
+
+time while (( i < 100 )); do rsync --mkpath --info=name2 ./*.JPG ./test/ | tr '\n' ' '; rm -r test; (( i+=1 )); done
+created 1 directory for ./test ANDY.JPG P6234828.JPG P6234829.JPG P6234830.JPG P6234831.JPG P6234832.JPG P6234833.JPG P6234834.JPG P6234835.JPG P6234836.JPG P6234837.JPG 
+
+real	1m19.522s
+user	0m19.497s
+sys	0m46.799s
+
+time while (( i < 100 )); do var=$(rsync --mkpath --info=name2 ./*.JPG ./test/); echo $var; rm -r test; (( i+=1 )); done
+# created 1 directory for ./test ANDY.JPG P6234828.JPG P6234829.JPG P6234830.JPG P6234831.JPG P6234832.JPG P6234833.JPG P6234834.JPG P6234835.JPG P6234836.JPG P6234837.JPG
+
+# real	1m16.416s
+# user	0m19.963s
+# sys	0m46.616s
+
+# NB relies on IFS splitting (echo "${IFS@Q}" #$' \t\n') of var because it us unquoted. The newlines still exist. Any spaces in file names would also be split.
+
+time while (( i < 100 )); do var=$(rsync --mkpath --info=name2 ./*.JPG ./test/); echo "${var}"; rm -r test; (( i+=1 )); done
+# created 1 directory for ./test
+# ANDY.JPG
+# P6234828.JPG
+# P6234829.JPG
+# P6234830.JPG
+# P6234831.JPG
+# P6234832.JPG
+# P6234833.JPG
+# P6234834.JPG
+# P6234835.JPG
+# P6234836.JPG
+# P6234837.JPG
+
+time while (( i < 100 )); do var=$(rsync --mkpath --info=name2 ./*.JPG ./test/); echo "${var@Q}"; rm -r test; (( i+=1 )); done
+# $'ANDY.JPG\nP6234828.JPG\nP6234829.JPG\nP6234830.JPG\nP6234831.JPG\nP6234832.JPG\nP6234833.JPG\nP6234834.JPG\nP6234835.JPG\nP6234836.JPG\nP6234837.JPG'
+
+# Using shell parameter substitution where "${var//$'\n'/' '}" is replace all newline with space when expanding the variable var.
+
+time while (( i < 100 )); do var=$(rsync --mkpath --info=name2 ./*.JPG ./test/); echo "${var//$'\n'/' '}"; rm -r test; (( i+=1 )); done
+# created 1 directory for ./test ANDY.JPG P6234828.JPG P6234829.JPG P6234830.JPG P6234831.JPG P6234832.JPG P6234833.JPG P6234834.JPG P6234835.JPG P6234836.JPG P6234837.JPG
+
+# real	1m17.708s
+# user	0m20.386s
+# sys	0m47.247s
+
+# Rather than just echo the variable, assigning the result to another variable would strip the newlines in the new variable.
+
+time while (( i < 100 )); do var=$(rsync --mkpath --info=name2 ./*.JPG ./test/); var2="${var//$'\n'/' '}"; echo "${var2@Q}"; rm -r test; (( i+=1 )); done
+# 'created 1 directory for ./test ANDY.JPG P6234828.JPG P6234829.JPG P6234830.JPG P6234831.JPG P6234832.JPG P6234833.JPG P6234834.JPG P6234835.JPG P6234836.JPG P6234837.JPG'
+
+# real	1m22.648s
+# user	0m29.913s
+# sys	1m4.441s
+
+# alternative loop using for in construct and brace expansion to create a list of numbers 1 to 100 inclusive.
+
+time for i in {1..100}; do var=$(rsync --mkpath --info=name2 ./*.JPG ./test/); var2="${var//$'\n'/' '}"; echo "${var2@Q}"; rm -r test; done
+# 'created 1 directory for ./test ANDY.JPG P6234828.JPG P6234829.JPG P6234830.JPG P6234831.JPG P6234832.JPG P6234833.JPG P6234834.JPG P6234835.JPG P6234836.JPG P6234837.JPG'
+
+# real	1m23.958s
+# user	0m30.770s
+# sys	1m6.104s
+
+# Here using shell parameter substitution to remove newlines and add clear line and carriage return. echo -n suppresses echo's newline
+
+time for i in {1..100}; do var=$(rsync --mkpath --info=name2 ./*.JPG ./test/); var2="${var//$'\n'/$'\e[2K'$'\r'}"; echo -n "${var2}"; rm -r test; done
+# P6234837.JPG
+
+# real	1m27.056s
+# user	0m32.519s
+# sys	1m9.253s
+
+time while (( i < 100 )); do var=$(rsync --mkpath --info=name2 ./*.JPG ./test/); var2="${var//$'\n'/$'\e[2K'$'\r'}"; echo -n "${var2}"; rm -r test; (( i+=1 )); done
+P6234837.JPG
+real	1m27.154s
+user	0m32.591s
+sys	1m9.402s
+
