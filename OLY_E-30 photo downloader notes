@@ -737,6 +737,58 @@ IFS=$old_IFS
 
 # using delimeters to split the words into the array correctly (as long as the filenames don't contain comma's or newlines).
 
+# Appending (or prepending) to all elements in an array
+# =====================================================
+
+array=(bill bob sue)
+echo "${array[@]}"
+# bill bob sue
+
+echo "${array[@]}"" collins"
+# bill bob sue collins
+
+echo "${array[@]} collins"
+# bill bob sue collins
+
+# This does not work as the string is only added once.
+# use bash shell parameter expansion - "If parameter is an array variable subscripted with ‘@’ or ‘*’, the operation is applied to each member of the array in turn, and the expansion is the resultant list."
+
+array=(bill bob sue)
+array2=("${array[@]/%/ collins}")
+echo "${array2[@]}"
+# bill collins bob collins sue collins
+
+# or
+
+array=(bill bob sue)
+echo "${array[@]/%/ collins}"
+# bill collins bob collins sue collins
+
+array=(bill bob sue)
+echo "${array[@]/#/player }"
+# player bill player bob player sue
+
+# To append and prepend at the same time use a loop
+
+while (( $i < ${#array[@]} )); do array2[i]="player ""${array[i]}"" collins"; echo "${array[i]}, " "${array2[i]}"; ((i++)); done; echo "${array2[@]}"
+bill,  player bill collins
+bob,  player bob collins
+sue,  player sue collins
+player bill collins player bob collins player sue collins
+
+# to simply send prepended and appended text to the terminal it might be simpler to use printf
+
+array=(bill bob sue)
+printf "player %s collins " "${array[@]}"; echo
+#player bill collins player bob collins player sue collins
+
+# The  echo command is used to create just one newline rather than one after every expansion of array if used within the format string of printf
+
+array=(bill bob sue)
+printf "player %s collins\n" "${array[@]}"
+# player bill collins
+# player bob collins
+# player sue collins
 
 # "${array_name[@]}" or "${array_name[*]}"
 # ========================================
