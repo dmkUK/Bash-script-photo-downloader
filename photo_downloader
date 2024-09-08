@@ -11,6 +11,14 @@ backup_dir='/My Pictures/'
 image_types=(png ORF JPG jpg)
 exiftool_date_pattern='%Y/raw images/%m %b/%Y_%m_%d/'
 
+if [[ ${1} == "test" ]]
+	then
+		echo testing
+		camera_dir=./DCIM/100OLYMP/
+		working_dir=./working/
+		backup_dir=./backup/
+fi
+
 function variable_print_outs ()
 {
 	echo from line $1
@@ -32,14 +40,6 @@ function variable_print_outs ()
 	echo $'\n'
 }
 
-if [[ ${1} == "test"  ]]
-	then
-		echo testing
-		camera_dir=./DCIM/100OLYMP/
-		working_dir=./working/
-		backup_dir=./backup/
-fi
-
 if [[ $(findmnt -n -o target /dev/disk/by-id/*"$camera_name"*part1) ]]
 	then
 		echo "$camera_name" camera is attached
@@ -58,7 +58,6 @@ if [[ $(findmnt -n -o target /dev/disk/by-label/"$backup_drive_label") ]]
 	then
 		echo "$backup_drive_label" disk is mounted
 	else
-		echo "$backup_drive_label" is not mounted
 		if [[ ${1} == "test" ]]
 			then
 				echo testing
