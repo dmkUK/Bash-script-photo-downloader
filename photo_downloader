@@ -88,20 +88,20 @@ then
 		if ((loop == 0))
 			then
 				# first loop
-				file_list="$camera_dir""${target_array[loop]}"
+				file_list=("$camera_dir""${target_array[loop]}")
 		elif [[ "${target_array[((loop+1))]}" == "${target_array[((loop-1))]}" ]]
 			then
 				# same path			
-				file_list+=" ""$camera_dir""${target_array[loop]}"
+				file_list+=("$camera_dir""${target_array[loop]}")
 		else
 				# different path clear list
 				working_path="$working_dir""${target_array[((loop-1))]}"
 				backup_path="$backup_dir""${target_array[((loop-1))]}"
 				echo 'transferring to '"$working_path"' and '"$backup_path"
-				rsync --mkpath -a $file_list "$working_path"&
-				rsync --mkpath -a $file_list "$backup_path"
+				rsync --mkpath -a "${file_list[@]}" "$working_path"&
+				rsync --mkpath -a "${file_list[@]}" "$backup_path"
 				wait
-				file_list="$camera_dir""${target_array[loop]}"
+				file_list=("$camera_dir""${target_array[loop]}")
 		fi
 		((loop+=2))
 	done
