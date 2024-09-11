@@ -58,6 +58,7 @@ if [[ $(findmnt -n -o target /dev/disk/by-label/"$backup_drive_label") ]]
 	then
 		echo "$backup_drive_label" disk is mounted
 	else
+		echo "$backup_drive_label" disk is not mounted
 		if [[ ${1} == "test" ]]
 			then
 				echo testing
