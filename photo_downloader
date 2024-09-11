@@ -91,7 +91,7 @@ then
 				file_list=("$camera_dir""${target_array[loop]}")
 		elif [[ "${target_array[((loop+1))]}" == "${target_array[((loop-1))]}" ]]
 			then
-				# same path			
+				# same path
 				file_list+=("$camera_dir""${target_array[loop]}")
 		else
 				# different path clear list
@@ -428,7 +428,7 @@ if [[ ${1} == "test" ]]
 #  152)	TEST FOR POSITIONAL PARAMETER 'test'
 #  153)	IF TRUE THEN DO COMMANDS
 #  154)	PRINT MEESAGE 'DELETING TEST DIRECTORIES'
-#  155)	REMOVE DIRECTORIES AND FILES WHERE 
+#  155)	REMOVE DIRECTORIES AND FILES WHERE
 #	rm	-r -R --recursive REMOVES FILES AND DIRECTORIES RECURSIVELY
 #		-I INTERACTIVE MODE PROMPTS ONCE BEFORE REMOVING MORE THAN THREE FILES OR WHEN IN RECURSIVE MODE
 #  156) CLOSE if BLOCK
