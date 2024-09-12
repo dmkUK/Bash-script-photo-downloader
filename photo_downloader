@@ -90,33 +90,16 @@ done
 while  ((loop<${#target_array[@]}))
 do
 	echo -en '\e[2K'
-	if [[ ${*} == *"--rsynca"* ]]
+	if [[ ${*} == *"--parallel"* ]]
 		then
 			echo -e '\eM' ${*}' - 1st rsync enclosed in {} terminated with &'
-			{ rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'; }&
-				rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
+			{ rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'; }&
+				rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
 			wait
-		elif [[ ${*} == *"--rsyncb"* ]]
-			then
-				echo -e '\eM' ${*}' - 1st rsync enclosed in () terminated with &'
-				( rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'; )&
-				rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
-				wait
-		elif [[ ${*} == *"--rsyncc"* ]]
-			then
-				echo -e '\eM' ${*}' - 1st rsync terminated with &'
-				rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'&
-				rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
-				wait
-		elif [[ ${*} == *"--rsyncd"* ]]
-			then
-				echo -e '\eM' ${*}' - each rsync enclosed in {} terminated with & no wait command'
-				{ rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'; }&
-				{ rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'; }&
 		else
 			echo -e '\eM' ${*}' - no  parallel'
-			rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
-			rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
+			rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
+			rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
 	fi
 
 	camera_file_list+=("$(find "$camera_dir" -name "${target_array[loop]}")"$'\n')
@@ -125,20 +108,15 @@ do
 	((loop+=2))
 done
 
-# IFS=$old_IFS
-
 echo camera file list:$'\n' "${camera_file_list[*]##"$camera_dir"}" ${#camera_file_list[*]} files
 echo working file list:$'\n' "${working_file_list[*]}" ${#working_file_list[*]} files
 echo backup file list:$'\n' "${backup_file_list[*]}" ${#backup_file_list[*]} files
 
-
 if [[ ${1} == "test" ]]
 	then
 		echo deleting test directories
-			rm -rI ./backup ./working
+		rm -rI ./backup ./working
 	fi
-
-
 
 #************************************************************************************************************
 # COMMENTS
@@ -286,6 +264,7 @@ if [[ ${1} == "test" ]]
 #		{ rsync --mkpath --info name2 -ah "/media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF" "/home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF"| tr '\n' '\r' }&
 #		-- mkpath		CREATE DESTINATION'S MISSING PATH COMPONENTS
 #		-- info name2		INFORMATION VERBOSITY
+#		-u --update		FORCES rsync TO SKIP FILES MORE RECENTLY MODIFIED ON DESTINATION
 #		-h --human readable	OUTPUT NUMBERS IN HUMAN READABLE FORMAT
 #		-a --archive		ARCHIVE MODE, IMPLIES
 #						-r	RECURSIVE
