@@ -98,8 +98,8 @@ then
 				working_path="$working_dir""${target_array[((loop-1))]}"
 				backup_path="$backup_dir""${target_array[((loop-1))]}"
 				echo 'transferring to '"$working_path"' and '"$backup_path"
-				rsync --mkpath -a "${file_list[@]}" "$working_path"&
-				rsync --mkpath -a "${file_list[@]}" "$backup_path"
+				rsync --mkpath -au "${file_list[@]}" "$working_path"&
+				rsync --mkpath -au "${file_list[@]}" "$backup_path"
 				wait
 				file_list=("$camera_dir""${target_array[loop]}")
 		fi
@@ -113,30 +113,30 @@ do
 	if [[ ${*} == *"--rsynca"* ]]
 		then
 			echo -e '\eM' ${*}' - 1st rsync enclosed in {} terminated with &'
-			{ rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'; }&
-				rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
+			{ rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'; }&
+				rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
 			wait
 		elif [[ ${*} == *"--rsyncb"* ]]
 			then
 				echo -e '\eM' ${*}' - 1st rsync enclosed in () terminated with &'
-				( rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'; )&
-				rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
+				( rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'; )&
+				rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
 				wait
 		elif [[ ${*} == *"--rsyncc"* ]]
 			then
 				echo -e '\eM' ${*}' - 1st rsync terminated with &'
-				rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'&
-				rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
+				rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'&
+				rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
 				wait
 		elif [[ ${*} == *"--rsyncd"* ]]
 			then
 				echo -e '\eM' ${*}' - each rsync enclosed in {} terminated with & no wait command'
-				{ rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'; }&
-				{ rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'; }&
+				{ rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'; }&
+				{ rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'; }&
 		else [[ ${*} == *"--none"* ]]
 			echo -e '\eM' ${*}' - no  parallel'
-			rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
-			rsync --mkpath --info=name2 -ah "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
+			rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
+			rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
 	fi
 
 #	camera_file_list+=("$(find "$camera_dir" -name "${target_array[loop]}")"$'\n')
