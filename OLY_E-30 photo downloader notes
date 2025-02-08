@@ -939,8 +939,26 @@ shopt -u nullglob
 
 # returns nothing in an empty directory. shopt -s is set -u unset. Turning off null globbing can avoid surprises when not needed...
 
+# Multiple calls of echo
+# =======================
+
+# each call uses time and resources, even for internal bash builtin commands like echo. A single call using newlines is more efficient if slightly less readable in code.
+# whilst referencing unset variables echo once 10,000 times
+
+time for i in {1..10000}; do echo camera file list:$'\n' "${camera_file_list[*]##"$camera_dir"}" "${#camera_file_list[@]}" files$'\n'working file list:$'\n' "${working_file_list[@]}" "${#working_file_list[@]}" files$'\n'backup file list:$'\n' "${backup_file_list[@]}" "${#backup_file_list[@]}" files; done
+# real	0m0.412s
+# user	0m0.287s
+# sys	0m0.094s
+
+# echo 3 outputs 10,000 times
+
+time for i in {1..10000}; do echo camera file list:$'\n' "${camera_file_list[*]##"$camera_dir"}" "${#camera_file_list[@]}" files$; echo working file list:$'\n' "${working_file_list[@]}" "${#working_file_list[@]}" files$; echo backup file list:$'\n' "${backup_file_list[@]}" "${#backup_file_list[@]}" files; done
+# real	0m0.472s
+# user	0m0.337s
+# sys	0m0.126s
+
 # Subshells
-============
+# ============
 
 # Subshells (along with functions using local) can be used to keep a variables scope local ie
 
@@ -1226,4 +1244,3 @@ P6234837.JPG
 real	1m27.154s
 user	0m32.591s
 sys	1m9.402s
-
