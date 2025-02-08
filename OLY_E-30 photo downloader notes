@@ -1007,8 +1007,6 @@ echo $var | rsync -a --files from=- /dir /dir
 # to group the files by their path using a while loop to iterate through the members of target_array where even is filenames and odd is paths
 # a conditional is used to check if the file path is different from the previous file. If the loop is not the first iteration (when the file is different from nothing) this is where the rsync copies the files. In any case create path and file_list variables. If the file is the same as the previous one append the value of camera_dir and target_array for the current loop -1 (file name) to file_list.
 
-
-
 until ((loop>${#target_array[@]}))
 do
 	echo "${target_array[((loop+1))]}" "${target_array[((loop-1))]}"
@@ -1051,6 +1049,81 @@ file_list+=("$camera_dir""${target_array[((loop-1))]}")
 rsync --mkpath -ah "${file_list[@]}" "$path"
 
 # tr, command substitution and shell parameter expansion to remove the trailing /n from the rsync command output.
+
+# LOG FILE:
+===========
+
+# log file name, modified date time to identify previously downloaded therefore speedup by not checking exif data of already downloaded files. log exif and save locations for error checking.
+
+# From
+
+man hier
+
+which has a "description of the filesystem hierarchy": /var/log/ is the location for miscellaneous log files
+
+https://askubuntu.com/a/38127/653727
+
+# The equivelent without writing to the shell would be:
+
+command > /path/to/logfile
+
+# If you want to append (>>) and show the output in the shell, use the -a option:
+
+command | tee -a /path/to/flogfile
+
+# Please note that the pipe will catch stdout only, errors to stderr are not processed by the pipe with tee. If you want to log errors (from stderr), use:
+
+command 2>&1 | tee /path/to/logfile
+
+# This means: run command and redirect the stderr stream (2) to stdout (1). That will be passed to the pipe with the tee application.
+
+https://stackoverflow.com/a/68293043
+
+#!/bin/bash
+(
+  blah code
+) 2>&1 | tee -a file.log
+
+# Where: 2>&1 - redirect stderr to stdout and | tee -a file.log - send stdout to console but also 'tee' up a copy to be -appended to file.log
+
+https://stackoverflow.com/a/68292563
+
+#!/bin/bash
+(
+  blah code
+) > file.log
+
+https://askubuntu.com/q/525767/653727
+https://stackoverflow.com/a/49514467
+
+# explains using exec buitin to set redirection of input / output to a logfile
+
+https://unix.stackexchange.com/q/61931
+
+#!/bin/bash -
+
+exec > >(tee "$HOME/somefile.log") 2>&1
+
+echo "$HOME"
+echo hi
+date
+date +%F
+echo bye 1>&2
+
+# Gives me output to the file $HOME/somefile.log and to the terminal like this:
+
+/home/saml
+hi
+Sun Jan 20 13:54:17 EST 2013
+2013-01-20
+bye
+
+CONFIG FILE:
+=============
+
+save config separately for user editing of save location
+
+
 ================================================================================================================
 
 time while (( i < 100 )); do rsync --mkpath --info=name2 ./*.JPG ./test/; rm -r test; (( i+=1 )); done
