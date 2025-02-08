@@ -737,6 +737,58 @@ IFS=$old_IFS
 
 # using delimeters to split the words into the array correctly (as long as the filenames don't contain comma's or newlines).
 
+# Appending (or prepending) to all elements in an array
+# =====================================================
+
+array=(bill bob sue)
+echo "${array[@]}"
+# bill bob sue
+
+echo "${array[@]}"" collins"
+# bill bob sue collins
+
+echo "${array[@]} collins"
+# bill bob sue collins
+
+# This does not work as the string is only added once.
+# use bash shell parameter expansion - "If parameter is an array variable subscripted with ‘@’ or ‘*’, the operation is applied to each member of the array in turn, and the expansion is the resultant list."
+
+array=(bill bob sue)
+array2=("${array[@]/%/ collins}")
+echo "${array2[@]}"
+# bill collins bob collins sue collins
+
+# or
+
+array=(bill bob sue)
+echo "${array[@]/%/ collins}"
+# bill collins bob collins sue collins
+
+array=(bill bob sue)
+echo "${array[@]/#/player }"
+# player bill player bob player sue
+
+# To append and prepend at the same time use a loop
+
+while (( $i < ${#array[@]} )); do array2[i]="player ""${array[i]}"" collins"; echo "${array[i]}, " "${array2[i]}"; ((i++)); done; echo "${array2[@]}"
+bill,  player bill collins
+bob,  player bob collins
+sue,  player sue collins
+player bill collins player bob collins player sue collins
+
+# to simply send prepended and appended text to the terminal it might be simpler to use printf
+
+array=(bill bob sue)
+printf "player %s collins " "${array[@]}"; echo
+#player bill collins player bob collins player sue collins
+
+# The  echo command is used to create just one newline rather than one after every expansion of array if used within the format string of printf
+
+array=(bill bob sue)
+printf "player %s collins\n" "${array[@]}"
+# player bill collins
+# player bob collins
+# player sue collins
 
 # "${array_name[@]}" or "${array_name[*]}"
 # ========================================
@@ -905,3 +957,290 @@ time for i in {1..10000}; do echo camera file list:$'\n' "${camera_file_list[*]#
 # user	0m0.337s
 # sys	0m0.126s
 
+# Subshells
+# ============
+
+# Subshells (along with functions using local) can be used to keep a variables scope local ie
+
+(var=blue; echo colour is "$var"); echo colour is "$var"
+
+# outputs
+# colour is blue
+# colour is 
+
+# This comes at a cost though. Placing echo in a sub shell outputing to the null device (esentially nowhere) and looping 10,000 times:
+
+time for((i=0;i<10000;i++)); do echo "$(echo hello)"; done >/dev/null 
+
+# outputs
+# real    0m25.854s
+# user    0m6.460s
+# sys     0m18.629s
+
+# whereas in the same shell
+
+time for((i=0;i<10000;i++)); do echo hello; done >/dev/null
+
+# real    0m0.279s
+# user    0m0.248s
+# sys     0m0.025s
+
+# per iteration of the loop that is a difference of:
+# real 0.0025575
+# user 0.0006212
+# sys  0.0018604
+
+# similarly using bash shell parameter expansion versus calling an external programme in a subshell 10,000 times and echo the reult to device null
+
+MyPath="path/name.ext" 
+time for((i=0;i<10000;i++)); do echo "$(basename ${MyPath} )"; done >/dev/null 
+time for((i=0;i<10000;i++)); do echo "${MyPath##*/}"; done >/dev/null  
+
+# real	0m52.569s
+# user	0m13.093s
+# sys	0m35.512s
+
+# real	0m0.422s
+# user	0m0.399s
+# sys	0m0.005s
+
+# per iteration of the loop that is a difference of:
+# real 0.0052147
+# user 0.0012694
+# sys  0.0035507
+
+# Grouping the files to reduce rsync calls
+# =========================================
+
+# rsync can take multiple files ad input
+
+rsync -a /dir/file1 /dir/file2 /dir/
+
+# rsync can process a list of files with the files-from option
+
+echo $var | rsync -a --files from=- /dir /dir
+
+#  --files-from=FILE	Using  this option allows you to specify the exact list of files to transfer (as read from the specified FILE or '-' for standard input).   It  also  tweaks the default behavior of rsync to make transferring just the specified files and directories easier:
+
+# to group the files by their path using a while loop to iterate through the members of target_array where even is filenames and odd is paths
+# a conditional is used to check if the file path is different from the previous file. If the loop is not the first iteration (when the file is different from nothing) this is where the rsync copies the files. In any case create path and file_list variables. If the file is the same as the previous one append the value of camera_dir and target_array for the current loop -1 (file name) to file_list.
+
+until ((loop>${#target_array[@]}))
+do
+	echo "${target_array[((loop+1))]}" "${target_array[((loop-1))]}"
+
+	if [[ "${target_array[((loop+1))]}" != "${target_array[((loop-1))]}" ]]
+	then
+		if ((loop != 0))
+			then
+			echo different
+			echo rsync parameters $file_list  "$working_path" "$backup_path"
+			rsync --mkpath -ah $file_list "$working_path"&
+			rsync --mkpath -ah $file_list "$backup_path"
+			wait
+		fi
+		working_path="$working_dir""${target_array[((loop+1))]}"
+		backup_path="$backup_dir""${target_array[((loop+1))]}"
+		file_list="$camera_dir""${target_array[loop]}"
+		echo "$camera_dir""${target_array[loop]}"
+		echo file is "$file_list"
+		echo working path is "$working_path"
+		echo backup path is "$backup_path"
+	else
+		echo same
+		file_list+=" ""$camera_dir""${target_array[loop]}"
+		echo file is "$file_list"
+		echo working path is "$working_path"
+		echo backup path is "$backup_path"
+	fi
+	echo $loop
+	((loop+=2))
+done
+
+# could use an array for file_list to avoid word splitting errors over filenames with spaces etc
+
+file_list+=("$camera_dir""${target_array[((loop-1))]}")
+
+# note don't need the space anymore
+# rsync command becomes
+
+rsync --mkpath -ah "${file_list[@]}" "$path"
+
+# tr, command substitution and shell parameter expansion to remove the trailing /n from the rsync command output.
+
+# LOG FILE:
+===========
+
+# log file name, modified date time to identify previously downloaded therefore speedup by not checking exif data of already downloaded files. log exif and save locations for error checking.
+
+# From
+
+man hier
+
+which has a "description of the filesystem hierarchy": /var/log/ is the location for miscellaneous log files
+
+https://askubuntu.com/a/38127/653727
+
+# The equivelent without writing to the shell would be:
+
+command > /path/to/logfile
+
+# If you want to append (>>) and show the output in the shell, use the -a option:
+
+command | tee -a /path/to/flogfile
+
+# Please note that the pipe will catch stdout only, errors to stderr are not processed by the pipe with tee. If you want to log errors (from stderr), use:
+
+command 2>&1 | tee /path/to/logfile
+
+# This means: run command and redirect the stderr stream (2) to stdout (1). That will be passed to the pipe with the tee application.
+
+https://stackoverflow.com/a/68293043
+
+#!/bin/bash
+(
+  blah code
+) 2>&1 | tee -a file.log
+
+# Where: 2>&1 - redirect stderr to stdout and | tee -a file.log - send stdout to console but also 'tee' up a copy to be -appended to file.log
+
+https://stackoverflow.com/a/68292563
+
+#!/bin/bash
+(
+  blah code
+) > file.log
+
+https://askubuntu.com/q/525767/653727
+https://stackoverflow.com/a/49514467
+
+# explains using exec buitin to set redirection of input / output to a logfile
+
+https://unix.stackexchange.com/q/61931
+
+#!/bin/bash -
+
+exec > >(tee "$HOME/somefile.log") 2>&1
+
+echo "$HOME"
+echo hi
+date
+date +%F
+echo bye 1>&2
+
+# Gives me output to the file $HOME/somefile.log and to the terminal like this:
+
+/home/saml
+hi
+Sun Jan 20 13:54:17 EST 2013
+2013-01-20
+bye
+
+CONFIG FILE:
+=============
+
+save config separately for user editing of save location
+
+
+================================================================================================================
+
+time while (( i < 100 )); do rsync --mkpath --info=name2 ./*.JPG ./test/; rm -r test; (( i+=1 )); done
+# created 1 directory for ./test
+# ANDY.JPG
+# P6234828.JPG
+# P6234829.JPG
+# P6234830.JPG
+# P6234831.JPG
+# P6234832.JPG
+# P6234833.JPG
+# P6234834.JPG
+# P6234835.JPG
+# P6234836.JPG
+# P6234837.JPG
+
+# real	1m15.140s
+# user	0m16.954s
+# sys	0m40.187s
+
+
+time while (( i < 100 )); do echo $(rsync --mkpath --info=name2 ./*.JPG ./test/); rm -r test; (( i+=1 )); done
+# created 1 directory for ./test ANDY.JPG P6234828.JPG P6234829.JPG P6234830.JPG P6234831.JPG P6234832.JPG P6234833.JPG P6234834.JPG P6234835.JPG P6234836.JPG P6234837.JPG
+
+# real	1m17.994s
+# user	0m19.444s
+# sys	0m46.363s
+
+time while (( i < 100 )); do rsync --mkpath --info=name2 ./*.JPG ./test/ | tr '\n' ' '; rm -r test; (( i+=1 )); done
+created 1 directory for ./test ANDY.JPG P6234828.JPG P6234829.JPG P6234830.JPG P6234831.JPG P6234832.JPG P6234833.JPG P6234834.JPG P6234835.JPG P6234836.JPG P6234837.JPG 
+
+real	1m19.522s
+user	0m19.497s
+sys	0m46.799s
+
+time while (( i < 100 )); do var=$(rsync --mkpath --info=name2 ./*.JPG ./test/); echo $var; rm -r test; (( i+=1 )); done
+# created 1 directory for ./test ANDY.JPG P6234828.JPG P6234829.JPG P6234830.JPG P6234831.JPG P6234832.JPG P6234833.JPG P6234834.JPG P6234835.JPG P6234836.JPG P6234837.JPG
+
+# real	1m16.416s
+# user	0m19.963s
+# sys	0m46.616s
+
+# NB relies on IFS splitting (echo "${IFS@Q}" #$' \t\n') of var because it us unquoted. The newlines still exist. Any spaces in file names would also be split.
+
+time while (( i < 100 )); do var=$(rsync --mkpath --info=name2 ./*.JPG ./test/); echo "${var}"; rm -r test; (( i+=1 )); done
+# created 1 directory for ./test
+# ANDY.JPG
+# P6234828.JPG
+# P6234829.JPG
+# P6234830.JPG
+# P6234831.JPG
+# P6234832.JPG
+# P6234833.JPG
+# P6234834.JPG
+# P6234835.JPG
+# P6234836.JPG
+# P6234837.JPG
+
+time while (( i < 100 )); do var=$(rsync --mkpath --info=name2 ./*.JPG ./test/); echo "${var@Q}"; rm -r test; (( i+=1 )); done
+# $'ANDY.JPG\nP6234828.JPG\nP6234829.JPG\nP6234830.JPG\nP6234831.JPG\nP6234832.JPG\nP6234833.JPG\nP6234834.JPG\nP6234835.JPG\nP6234836.JPG\nP6234837.JPG'
+
+# Using shell parameter substitution where "${var//$'\n'/' '}" is replace all newline with space when expanding the variable var.
+
+time while (( i < 100 )); do var=$(rsync --mkpath --info=name2 ./*.JPG ./test/); echo "${var//$'\n'/' '}"; rm -r test; (( i+=1 )); done
+# created 1 directory for ./test ANDY.JPG P6234828.JPG P6234829.JPG P6234830.JPG P6234831.JPG P6234832.JPG P6234833.JPG P6234834.JPG P6234835.JPG P6234836.JPG P6234837.JPG
+
+# real	1m17.708s
+# user	0m20.386s
+# sys	0m47.247s
+
+# Rather than just echo the variable, assigning the result to another variable would strip the newlines in the new variable.
+
+time while (( i < 100 )); do var=$(rsync --mkpath --info=name2 ./*.JPG ./test/); var2="${var//$'\n'/' '}"; echo "${var2@Q}"; rm -r test; (( i+=1 )); done
+# 'created 1 directory for ./test ANDY.JPG P6234828.JPG P6234829.JPG P6234830.JPG P6234831.JPG P6234832.JPG P6234833.JPG P6234834.JPG P6234835.JPG P6234836.JPG P6234837.JPG'
+
+# real	1m22.648s
+# user	0m29.913s
+# sys	1m4.441s
+
+# alternative loop using for in construct and brace expansion to create a list of numbers 1 to 100 inclusive.
+
+time for i in {1..100}; do var=$(rsync --mkpath --info=name2 ./*.JPG ./test/); var2="${var//$'\n'/' '}"; echo "${var2@Q}"; rm -r test; done
+# 'created 1 directory for ./test ANDY.JPG P6234828.JPG P6234829.JPG P6234830.JPG P6234831.JPG P6234832.JPG P6234833.JPG P6234834.JPG P6234835.JPG P6234836.JPG P6234837.JPG'
+
+# real	1m23.958s
+# user	0m30.770s
+# sys	1m6.104s
+
+# Here using shell parameter substitution to remove newlines and add clear line and carriage return. echo -n suppresses echo's newline
+
+time for i in {1..100}; do var=$(rsync --mkpath --info=name2 ./*.JPG ./test/); var2="${var//$'\n'/$'\e[2K'$'\r'}"; echo -n "${var2}"; rm -r test; done
+# P6234837.JPG
+
+# real	1m27.056s
+# user	0m32.519s
+# sys	1m9.253s
+
+time while (( i < 100 )); do var=$(rsync --mkpath --info=name2 ./*.JPG ./test/); var2="${var//$'\n'/$'\e[2K'$'\r'}"; echo -n "${var2}"; rm -r test; (( i+=1 )); done
+P6234837.JPG
+real	1m27.154s
+user	0m32.591s
+sys	1m9.402s
