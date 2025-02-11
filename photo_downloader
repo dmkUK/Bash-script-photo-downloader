@@ -15,10 +15,10 @@ function variable_print_outs ()
 {
 	echo from line $1
 	echo loop$loop.line$LINENO "$loop"
-	echo loop$loop.line$LINENO "$camera_dir"*."$filename_extension"
+	echo loop$loop.line$LINENO "${camera_dir}"*."${filename_extension}"
 	echo loop$loop.line$LINENO "${target_array[loop]}"
-	echo loop$loop.line$LINENO "$camera_dir"${target_array[loop]} "$working_dir"${target_array[((loop+1))]}${target_array[loop]}
-	echo loop$loop.line$LINENO "$camera_dir"${target_array[loop]} "$backup_dir"${target_array[((loop+1))]}${target_array[loop]}
+	echo loop$loop.line$LINENO "${camera_dir}"${target_array[loop]} "${working_dir}"${target_array[((loop+1))]}${target_array[loop]}
+	echo loop$loop.line$LINENO "${camera_dir}"${target_array[loop]} "${backup_dir}"${target_array[((loop+1))]}${target_array[loop]}
 	echo loop$loop.line$LINENO "target array elements" "${#target_array[@]}"$'\n'"${target_array[@]}"
 	echo loop$loop.line$LINENO "image types" "${image_types[@]}"
 	echo loop$loop.line$LINENO "target array zero is" "${target_array[0]}"
@@ -42,8 +42,7 @@ if [[ $(findmnt -n -o target /dev/disk/by-id/*"$camera_name"*part1) ]]
 		echo "$camera_name" camera is not attached, exiting
 		if [[ ${1} == "test" ]]
 			then
-				echo testing
-				echo continuing with test directories
+				echo "Testing..."$'\n'"Continuing with test directory structure."
 			else
 				exit
 		fi
@@ -53,11 +52,10 @@ if [[ $(findmnt -n -o target /dev/disk/by-label/"$backup_drive_label") ]]
 	then
 		echo "$backup_drive_label" disk is mounted
 	else
-		echo "$backup_drive_label" is not mounted
+		echo "$backup_drive_label" disk is not mounted
 		if [[ ${1} == "test" ]]
 			then
-				echo testing
-				echo continuing with test directories
+				echo "Testing..."$'\n'"Continuing with test directory structure."
 			else
 				udisksctl mount -b /dev/disk/by-label/"$backup_drive_label"
 		fi
@@ -110,7 +108,7 @@ fi
 while  ((loop<${#target_array[@]}))
 do
 	echo -en '\e[2K'
-	if [[ ${*} == *"--rsynca"* ]]
+	if [[ ${*} == *"--parallel"* ]]
 		then
 			echo -e '\eM' ${*}' - 1st rsync enclosed in {} terminated with &'
 			{ rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'; }&
@@ -152,17 +150,17 @@ done
 if [[ ${1} == "test" ]]
 	then
 		echo deleting test directories
-			rm -r ./backup ./working
+		rm -r ./backup ./working
 	fi
 
-
+# variable_print_outs "$LINENO"
 
 #************************************************************************************************************
 # COMMENTS
 #***********************************************************************************************************
 #   1)	'SHEBANG' # SHARP ! BANG OR SHA-BANG, HASHBANG etc SPECIFIES THE INTERPRETER AND ITS LOCATION FOR THE SCRIPT
 #   3)	set BUILTIN MODIFIES SHELL BEHAVIOUR OR DISPLAYS NAMES AND VALUES OF SHELL VARIABLES. set -x OR set -o xtrace EQUIVALENT TO bash -x ./photo_downloader PRINTS A TRACE OF COMMANDS AND ARITHMATIC AND EXPANSIONS BEFORE EXECUTION FOR DEBUGGING
-#   6-12)	PLACED VARIABLE ASSIGNMENTS TOGETHER HERE TO ALLOW EASY CUSTOMISATION EDITING OR POSSIBLE INTERACTIVE SCRIPT CHOICE SAY FOR CAMERA ID. mUST BE QUOTED TO ALLOW FOR SPACES IN NAMES (NO WORD SPLITTING) '' PRESERVES THE LITERAL VALUE "" PRESERVES THE LITERAL VALUE EXCEPT FOR $'|! CHARACTERS. THE SPECIAL PARAMETERS * AND @ CREATE LISTS OF POSITIONAL PARAMETERS IF QUOTED
+#   6-12)	PLACED VARIABLE ASSIGNMENTS TOGETHER HERE TO ALLOW EASY CUSTOMISATION EDITING OR POSSIBLE INTERACTIVE SCRIPT CHOICE SAY FOR CAMERA ID. MUST BE QUOTED TO ALLOW FOR SPACES IN NAMES (NO WORD SPLITTING) '' PRESERVES THE LITERAL VALUE "" PRESERVES THE LITERAL VALUE EXCEPT FOR $'|! CHARACTERS. THE SPECIAL PARAMETERS * AND @ CREATE LISTS OF POSITIONAL PARAMETERS IF QUOTED
 #   6)	LABEL OF THE DRIVE TO MOUNT AND SEND THE BACKUP COPY TO, LABEL WAS THE EASIEST WAY TO CONSISTANTLY MOUNT DRIVE AND FIND THE MOUNT POINT ls /dev/disk/by-label/*
 #   7)	THE NAME OF THE CAMERA FOUND BY PLUGING IN CAMERA AND AFTER AUTO MOUNT EXECUTING ls /dev/disk/by-id/*
 #   8)	THE DIRECTORY STRUCTURE ON THE CAMERA'S MEMORY CARD, OLYMPUS USE /DCIM/100OLYMP
@@ -350,6 +348,7 @@ if [[ ${1} == "test" ]]
 #		{ rsync --mkpath --info name2 -ah "/media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF" "/home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF"| tr '\n' '\r' }&
 #		-- mkpath		CREATE DESTINATION'S MISSING PATH COMPONENTS
 #		-- info name2		INFORMATION VERBOSITY
+#		-u --update		FORCES rsync TO SKIP FILES MORE RECENTLY MODIFIED ON DESTINATION
 #		-h --human readable	OUTPUT NUMBERS IN HUMAN READABLE FORMAT
 #		-a --archive		ARCHIVE MODE, IMPLIES
 #						-r	RECURSIVE
@@ -379,7 +378,6 @@ if [[ ${1} == "test" ]]
 #  133)	PRINT STRATEGY EXPLANATION
 #  134)	rsync | tr COMMANDS FOR WORKING GROUPED WITH {} THEN MOVED TO BACKGROUND WITH & TERMINATOR
 #  135)	rsync | tr COMMANDS FOR BACKUP GROUPED WITH {} THEN MOVED TO BACKGROUND WITH & TERMINATOR
-
 #  136)	ELSE IF FALSE THEN DO COMMANDS
 #  137)	PRINT STRATEGY EXPLANATION
 #  138)	rsync | tr COMMANDS FOR WORKING
@@ -402,7 +400,6 @@ if [[ ${1} == "test" ]]
 #  145)	USE SHELL ARITHMETIC TO ADD 2 TO THE VALUE OF loop AT END OF LOOP. ADDING TWO BECAUSE THE ARRAY CONTAINS ALTERNATING FILENAMES AND PATHS AND WE WANT TO MOVE TO NEXT FILENAME.
 #		loop = loop + 2
 #  146)	CLOSE loop
-
 #  148)	PRINT OUT A SUMMARY LIST OF FILES ON THE CAMERA USING SHELL PARAMETER EXPANSION TO REMOVE THE PATH FROM THE VARIABLE $camera_file_list[*]} ${ parameter##word } WHERE word IS PATTERN MATCHED TO parameter, IN THIS CASE THE VARIABLE $camera_dir.IF THE MATCH IS MADE TO THE BEGINNING OF parameter THE RESULT IS THE DELETION OF THE LONGEST MATCHING PATTERN. ${#name[*]} IS THE NUMBER OF ELEMENTS IN THE ARRAY camera_file_list
 #		"${/media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF\n /media/$USER/OLY_E-30/DCIM/100OLYMP/P421002.ORF\n /media/$USER/OLY_E-30/DCIM/100OLYMP/P421003.ORF\n ## "/media/$USER/OLY_E-30/DCIM/100OLYMP/"}" ${# /media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF\n /media/$USER/OLY_E-30/DCIM/100OLYMP/P421002.ORF\n /media/$USER/OLY_E-30/DCIM/100OLYMP/P421003.ORF\n}
 #			camera file list
