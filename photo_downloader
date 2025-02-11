@@ -75,71 +75,31 @@ do
 	files=($camera_dir*.$filename_extension)
 	[[ -a  "${files[0]}" ]] &&  echo $'\n'file extension $filename_extension exists on camera$'\n' || { echo $'\n'file extension $filename_extension does not exist on camera$'\n'; continue; }
 	old_IFS=$IFS; IFS=,$'\n'
+	echo 'reading exif data'
 	target_array+=($(exiftool -p '$filename,$datetimeoriginal' -d "$exiftool_date_pattern" $camera_dir*."$filename_extension"))
 	IFS=$old_IFS
 done
 
-if [[ ${*} == *"--batch"* ]]
-then
-	while ((loop <= ${#target_array[@]}))
-	do
-		if ((loop == 0))
-			then
-				# first loop
-				file_list=("$camera_dir""${target_array[loop]}")
-		elif [[ "${target_array[((loop+1))]}" == "${target_array[((loop-1))]}" ]]
-			then
-				# same path
-				file_list+=("$camera_dir""${target_array[loop]}")
-		else
-				# different path clear list
-				working_path="$working_dir""${target_array[((loop-1))]}"
-				backup_path="$backup_dir""${target_array[((loop-1))]}"
-				echo 'transferring to '"$working_path"' and '"$backup_path"
-				rsync --mkpath -au "${file_list[@]}" "$working_path"&
-				rsync --mkpath -au "${file_list[@]}" "$backup_path"
-				wait
-				file_list=("$camera_dir""${target_array[loop]}")
-		fi
-		((loop+=2))
-	done
-fi
-
-while  ((loop<${#target_array[@]}))
+while ((loop <= ${#target_array[@]}))
 do
-	echo -en '\e[2K'
-	if [[ ${*} == *"--parallel"* ]]
+	if ((loop == 0))
 		then
-			echo -e '\eM' ${*}' - 1st rsync enclosed in {} terminated with &'
-			{ rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'; }&
-				rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
+			# first loop
+			file_list=("$camera_dir""${target_array[loop]}")
+	elif [[ "${target_array[((loop+1))]}" == "${target_array[((loop-1))]}" ]]
+		then
+			# next file same path
+			file_list+=("$camera_dir""${target_array[loop]}")
+	else
+			# next file different path save files and clear list
+			working_path="$working_dir""${target_array[((loop-1))]}"
+			backup_path="$backup_dir""${target_array[((loop-1))]}"
+			echo 'transferring to '"$working_path"' and '"$backup_path"
+			rsync --mkpath -au "${file_list[@]}" "$working_path"&
+			rsync --mkpath -au "${file_list[@]}" "$backup_path"
 			wait
-		elif [[ ${*} == *"--rsyncb"* ]]
-			then
-				echo -e '\eM' ${*}' - 1st rsync enclosed in () terminated with &'
-				( rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'; )&
-				rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
-				wait
-		elif [[ ${*} == *"--rsyncc"* ]]
-			then
-				echo -e '\eM' ${*}' - 1st rsync terminated with &'
-				rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'&
-				rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
-				wait
-		elif [[ ${*} == *"--rsyncd"* ]]
-			then
-				echo -e '\eM' ${*}' - each rsync enclosed in {} terminated with & no wait command'
-				{ rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'; }&
-				{ rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'; }&
-		else [[ ${*} == *"--none"* ]]
-			echo -e '\eM' ${*}' - no  parallel'
-			rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
-			rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
+			file_list=("$camera_dir""${target_array[loop]}")
 	fi
-
-#	camera_file_list+=("$(find "$camera_dir" -name "${target_array[loop]}")"$'\n')
-#	working_file_list+=("$(find "$working_dir" -name "${target_array[loop]}")"$'\n')
-#	backup_file_list+=("$(find "$backup_dir" -name "${target_array[loop]}")"$'\n')
 	((loop+=2))
 done
 
@@ -151,7 +111,7 @@ if [[ ${1} == "test" ]]
 	then
 		echo deleting test directories
 		rm -r ./backup ./working
-	fi
+fi
 
 # variable_print_outs "$LINENO"
 
