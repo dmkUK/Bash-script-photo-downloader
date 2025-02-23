@@ -14,16 +14,16 @@ exiftool_date_pattern='%Y/raw images/%m %b/%Y_%m_%d/'
 function variable_print_outs ()
 {
 	echo from line $1
-	echo loop$loop.line$LINENO "$loop"
-	echo loop$loop.line$LINENO "$camera_dir"*."$filename_extension"
-	echo loop$loop.line$LINENO "${target_array[loop]}"
-	echo loop$loop.line$LINENO "$camera_dir"${target_array[loop]} "$working_dir"${target_array[((loop+1))]}${target_array[loop]}
-	echo loop$loop.line$LINENO "$camera_dir"${target_array[loop]} "$backup_dir"${target_array[((loop+1))]}${target_array[loop]}
-	echo loop$loop.line$LINENO "target array elements" "${#target_array[@]}"$'\n'"${target_array[@]}"
-	echo loop$loop.line$LINENO "image types" "${image_types[@]}"
-	echo loop$loop.line$LINENO "target array zero is" "${target_array[0]}"
-	echo loop$loop.line$LINENO "target array one is" "${target_array[1]}"
-	echo loop$loop.line$LINENO "IFS is" "${IFS@Q}"; echo "old IFS is" "${old_IFS@Q}"
+	echo loop$loop.line$LINENO ": LOOP ITERATION : ""$loop"
+	echo loop$loop.line$LINENO ": CAMERA DIRECTORY, FILENAME WILDCARD AND FILETYPE EXTENSION : ""${camera_dir}"*."${filename_extension}"
+	echo loop$loop.line$LINENO ": TARGET ARRAY LOOP FILENAME :" "${target_array[loop]}"
+	echo loop$loop.line$LINENO ": CAMERA DIRECTORY FILENAME : " "${camera_dir}"${target_array[loop]} ": WORKING DIRECTORY FILENAME :" "${working_dir}"${target_array[((loop+1))]}${target_array[loop]}
+	echo loop$loop.line$LINENO ": CAMERA DIRECTORY FILENAME : " "${camera_dir}"${target_array[loop]} ": BACKUP DIRECTORY FILENAME :"  "${backup_dir}"${target_array[((loop+1))]}${target_array[loop]}
+	echo loop$loop.line$LINENO ": NUMBER OF TARGET ARRAY ELEMENTS :" "${#target_array[@]}"". TARGET ARRAY ELEMENTS :"$'\n'"${target_array[@]}"
+	echo loop$loop.line$LINENO ": IMAGE TYPES : " "${image_types[@]}"
+	echo loop$loop.line$LINENO ": TARGET ARRAY ZERO :" "${target_array[0]}"
+	echo loop$loop.line$LINENO ": TARGET ARRAY  ONE :" "${target_array[1]}"
+	echo loop$loop.line$LINENO ": IFS :" "${IFS@Q}" "OLD IFS VALUE :" "${old_IFS@Q}"
 	echo $'\n'
 }
 
@@ -42,8 +42,7 @@ if [[ $(findmnt -n -o target /dev/disk/by-id/*"$camera_name"*part1) ]]
 		echo "$camera_name" camera is not attached, exiting
 		if [[ ${1} == "test" ]]
 			then
-				echo testing
-				echo continuing with test directories
+				echo "Testing..."$'\n'"Continuing with test directory structure."
 			else
 				exit
 		fi
@@ -53,11 +52,10 @@ if [[ $(findmnt -n -o target /dev/disk/by-label/"$backup_drive_label") ]]
 	then
 		echo "$backup_drive_label" disk is mounted
 	else
-		echo "$backup_drive_label" is not mounted
+		echo "$backup_drive_label" disk is not mounted
 		if [[ ${1} == "test" ]]
 			then
-				echo testing
-				echo continuing with test directories
+				echo "Testing..."$'\n'"Continuing with test directory structure."
 			else
 				udisksctl mount -b /dev/disk/by-label/"$backup_drive_label"
 		fi
@@ -69,7 +67,7 @@ loop=0
 
 echo Settings$'\n' backup_drive_label$'\t'"$backup_drive_label"$'\n' camera_name$'\t'$'\t'"$camera_name"$'\n' camera_dir$'\t'$'\t'"$camera_dir"$'\n' working_dir$'\t'$'\t'"$working_dir"$'\n' backup_dir$'\t'$'\t'"$backup_dir"$'\n' exiftool_date_pattern$'\t'"$exiftool_date_pattern"$'\n' image_types[*]$'\t'$'\t'"${image_types[*]}"$'\n'
 
-unset target_array camera_file_list working_file_list backup_file_list
+unset target_array
 
 for filename_extension in "${image_types[@]}"
 do
@@ -77,92 +75,48 @@ do
 	files=($camera_dir*.$filename_extension)
 	[[ -a  "${files[0]}" ]] &&  echo $'\n'file extension $filename_extension exists on camera$'\n' || { echo $'\n'file extension $filename_extension does not exist on camera$'\n'; continue; }
 	old_IFS=$IFS; IFS=,$'\n'
+	echo 'reading exif data'
 	target_array+=($(exiftool -p '$filename,$datetimeoriginal' -d "$exiftool_date_pattern" $camera_dir*."$filename_extension"))
 	IFS=$old_IFS
 done
 
-if [[ ${*} == *"--batch"* ]]
-then
-	while ((loop <= ${#target_array[@]}))
-	do
-		if ((loop == 0))
-			then
-				# first loop
-				file_list=("$camera_dir""${target_array[loop]}")
-		elif [[ "${target_array[((loop+1))]}" == "${target_array[((loop-1))]}" ]]
-			then
-				# same path
-				file_list+=("$camera_dir""${target_array[loop]}")
-		else
-				# different path clear list
-				working_path="$working_dir""${target_array[((loop-1))]}"
-				backup_path="$backup_dir""${target_array[((loop-1))]}"
-				echo 'transferring to '"$working_path"' and '"$backup_path"
-				rsync --mkpath -au "${file_list[@]}" "$working_path"&
-				rsync --mkpath -au "${file_list[@]}" "$backup_path"
-				wait
-				file_list=("$camera_dir""${target_array[loop]}")
-		fi
-		((loop+=2))
-	done
-fi
-
-while  ((loop<${#target_array[@]}))
+while ((loop <= ${#target_array[@]}))
 do
-	echo -en '\e[2K'
-	if [[ ${*} == *"--rsynca"* ]]
+	if ((loop == 0))
 		then
-			echo -e '\eM' ${*}' - 1st rsync enclosed in {} terminated with &'
-			{ rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'; }&
-				rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
+			# first loop
+			file_list=("$camera_dir""${target_array[loop]}")
+	elif [[ "${target_array[((loop+1))]}" == "${target_array[((loop-1))]}" ]]
+		then
+			# next file same path
+			file_list+=("$camera_dir""${target_array[loop]}")
+	else
+			# next file different path save files and clear list
+			working_path="$working_dir""${target_array[((loop-1))]}"
+			backup_path="$backup_dir""${target_array[((loop-1))]}"
+			echo 'transferring to '"$working_path"' and '"$backup_path"
+			rsync --mkpath -au "${file_list[@]}" "$working_path"&
+			rsync --mkpath -au "${file_list[@]}" "$backup_path"
 			wait
-		elif [[ ${*} == *"--rsyncb"* ]]
-			then
-				echo -e '\eM' ${*}' - 1st rsync enclosed in () terminated with &'
-				( rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'; )&
-				rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
-				wait
-		elif [[ ${*} == *"--rsyncc"* ]]
-			then
-				echo -e '\eM' ${*}' - 1st rsync terminated with &'
-				rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'&
-				rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
-				wait
-		elif [[ ${*} == *"--rsyncd"* ]]
-			then
-				echo -e '\eM' ${*}' - each rsync enclosed in {} terminated with & no wait command'
-				{ rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'; }&
-				{ rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'; }&
-		else [[ ${*} == *"--none"* ]]
-			echo -e '\eM' ${*}' - no  parallel'
-			rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$working_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
-			rsync --mkpath --info=name2 -ahu "$camera_dir""${target_array[loop]}" "$backup_dir""${target_array[((loop+1))]}""${target_array[loop]}" | tr '\n' '\r'
+			file_list=("$camera_dir""${target_array[loop]}")
 	fi
-
-#	camera_file_list+=("$(find "$camera_dir" -name "${target_array[loop]}")"$'\n')
-#	working_file_list+=("$(find "$working_dir" -name "${target_array[loop]}")"$'\n')
-#	backup_file_list+=("$(find "$backup_dir" -name "${target_array[loop]}")"$'\n')
 	((loop+=2))
 done
-
-# echo camera file list:$'\n' "${camera_file_list[*]##"$camera_dir"}" ${#camera_file_list[*]} files
-# echo working file list:$'\n' "${working_file_list[*]}" ${#working_file_list[*]} files
-# echo backup file list:$'\n' "${backup_file_list[*]}" ${#backup_file_list[*]} files
 
 if [[ ${1} == "test" ]]
 	then
 		echo deleting test directories
-			rm -r ./backup ./working
-	fi
+		rm -r ./backup ./working
+fi
 
-
+# variable_print_outs "$LINENO"
 
 #************************************************************************************************************
 # COMMENTS
 #***********************************************************************************************************
 #   1)	'SHEBANG' # SHARP ! BANG OR SHA-BANG, HASHBANG etc SPECIFIES THE INTERPRETER AND ITS LOCATION FOR THE SCRIPT
-#   3)	set BUILTIN MODIFIES SHELL BEHAVIOUR OR DISPLAYS NAMES AND VALUES OF SHELL VARIABLES. set -x OR set -o xtrace EQUIVALENT TO bash -x ./photo_downloader PRINTS A TRACE OF COMMANDS AND ARITHMATIC AND EXPANSIONS BEFORE EXECUTION FOR DEBUGGING
-#   6-12)	PLACED VARIABLE ASSIGNMENTS TOGETHER HERE TO ALLOW EASY CUSTOMISATION EDITING OR POSSIBLE INTERACTIVE SCRIPT CHOICE SAY FOR CAMERA ID. mUST BE QUOTED TO ALLOW FOR SPACES IN NAMES (NO WORD SPLITTING) '' PRESERVES THE LITERAL VALUE "" PRESERVES THE LITERAL VALUE EXCEPT FOR $'|! CHARACTERS. THE SPECIAL PARAMETERS * AND @ CREATE LISTS OF POSITIONAL PARAMETERS IF QUOTED
+#   3)	set BUILTIN MODIFIES SHELL BEHAVIOUR OR DISPLAYS NAMES AND VALUES OF SHELL VARIABLES. set -x OR set -o xtrace EQUIVALENT TO bash -x ./photo_downloader PRINTS A TRACE OF COMMANDS AND ARITHMATIC AND EXPANSIONS BEFORE EXECUTION FOR DEBUGGING. USE set +x TO END DEBUGGING MODE.
+#   6-12)	PLACED VARIABLE ASSIGNMENTS TOGETHER HERE TO ALLOW EASY CUSTOMISATION EDITING OR POSSIBLE INTERACTIVE SCRIPT CHOICE SAY FOR CAMERA ID. MUST BE QUOTED TO ALLOW FOR SPACES IN NAMES (NO WORD SPLITTING) '' PRESERVES THE LITERAL VALUE "" PRESERVES THE LITERAL VALUE EXCEPT FOR $'|! CHARACTERS. THE SPECIAL PARAMETERS * AND @ CREATE LISTS OF POSITIONAL PARAMETERS IF QUOTED
 #   6)	LABEL OF THE DRIVE TO MOUNT AND SEND THE BACKUP COPY TO, LABEL WAS THE EASIEST WAY TO CONSISTANTLY MOUNT DRIVE AND FIND THE MOUNT POINT ls /dev/disk/by-label/*
 #   7)	THE NAME OF THE CAMERA FOUND BY PLUGING IN CAMERA AND AFTER AUTO MOUNT EXECUTING ls /dev/disk/by-id/*
 #   8)	THE DIRECTORY STRUCTURE ON THE CAMERA'S MEMORY CARD, OLYMPUS USE /DCIM/100OLYMP
@@ -202,7 +156,7 @@ if [[ ${1} == "test" ]]
 #  36)	CLOSE IF STATEMENT
 #  THIS COULD ALSO BE WRITTEN AS
 #  	[[ ${1} == "test"  ]] && { echo testing; camera_dir=./DCIM/100OLYMP/; working_dir=./working/; backup_dir=./backup/; }
-#  38-50)	if; then; else; fi CONDITIONAL TO DETECT CAMERA AND EXIT SCRIPT IF NOT FOUND
+#  38-49)	if; then; else; fi CONDITIONAL TO DETECT CAMERA AND EXIT SCRIPT IF NOT FOUND
 #  38)	findmnt FINDS A MOUNTED FILESYSTEM WHERE -n, --noheadings IS DON'T PRINT COLUMN HEADINGS AND -o, --output IS THE OUTPUT COLUMNS TO BE SHOWN, IN THIS CASE target.
 #		findmnt -n -o target /dev/sdc1
 #			/media/$USER/OLY_E-30
@@ -212,42 +166,41 @@ if [[ ${1} == "test" ]]
 #  40)	PRINT A MESSAGE CAMERA IS ATTACHED
 #  41)	IF THE CONDITIONAL IS FALSE else
 #  42)	PRINT A MESSAGE CAMERA IS NOT ATTACHED. EXITING
-#  43-49)	if; then; else; fi conditional TO CONTINUE DESPITE CAMERA NOT BEING ATTACHED WITH TESTING ENVIRONMENT OR EXIT THE SCRIPT
+#  43-48)	if; then; else; fi conditional TO CONTINUE DESPITE CAMERA NOT BEING ATTACHED WITH TESTING ENVIRONMENT OR EXIT THE SCRIPT
 #  43)  if POSITIONAL PARAMETER ${1} IS EQUAL TO 'test' OBSERVE SPACING OR MATCHES ANY ARGUMENT PASSED
 #  44)  if TRUE then
-#  45)	PRINT OUT testing
-#  46)	PRINT OUT 'continuing with test directories'
-#  47)  else if NOT TRUE
-#  48)  exit THE SCRIPT
-#  49-50)	CLOSE if CONDITIONAL COMPOUND COMMANDS
-#  52-64)	if; then; else; fi CONDITIONAL TO DETECT backup_data DRIVE AND MOUNT IF NESCESSARY. ORIGINALLY USED THE FOLLOWING
+#  45)	PRINT OUT 'continuing with test directory structure.'
+#  46)  else if NOT TRUE
+#  47)  exit THE SCRIPT
+#  48-49)	CLOSE if CONDITIONAL COMPOUND COMMANDS
+#  51-62)	if; then; else; fi CONDITIONAL TO DETECT backup_data DRIVE AND MOUNT IF NESCESSARY. ORIGINALLY USED THE FOLLOWING
 #		if [[ -n $(findmnt -n -o target $(readlink -f /dev/disk/by-label/"$backup_drive_label")) ]]
 # WHERE readlink PRINTS THE VALUE OF A SYMBOLIC LINK OR CANONICAL (STANDARDISED) FILE NAME WHERE -f, --canonicalize IS CANONICALISE BY FOLLOWING EVERY SYMLINK IN EVERY COMPONENT OF THE GIVEN NAME RECURSIVELY; ALL BUT THE LAST COMPONENT MUST EXIST. findmnt FINDS A MOUNTED FILESYSTEM WHERE -n, --noheadings IS DON'T PRINT COLUMN HEADINGS AND -o, --output IS THE OUTPUT COLUMNS TO BE SHOWN, IN THIS CASE target.[[ expression ]] IS CONDITIONAL CONSTRUCT WHICH RETURNS A STATUS OF 0 OR 1 DEPENDING ON THE EVALAUATION OF expression. [[ -n string ]] IS A BASH CONDITIONAL EXPRESSION WHERE -n RETURNS true IF THE LENGTH OF THE STRING IS NON ZERO. EXIT OR RETURN STATUS IS 0 - SUCCESS OR NON ZERO - FAILURE. THIS SUPRESSES findmnt OUTPUT BY TESTING IF THE OUTPUT IS THERE OR NOT BUT THE -n, findmnt OPTIONS AND readlink ARE NOT NESCESSARY.
-#  52)		findmnt /dev/disk/by-label/Backup_Data
+#  51)		findmnt /dev/disk/by-label/Backup_Data
 #			[[ TARGET SOURCE FSTYPE OPTIONS /media/$USER/Backup_Data /dev/sdc ext4 rw,nosuid,nodev,relatime,errors=remount-ro ]] OR error
 #			true OR error
-#  53)	IF THE CONDITIONAL IS TRUE then
-#  54)	PRINT A MESSAGE DISK IS MOUNTED
-#  55)	IF THE CONDITIONAL IS FALSE else
-#  56)  PRINT A MESSAGE DISK IS NOT MOUNTED
-#  57-63)	if, then, else CONDITIONAL COMPOUND COMMANDS TO SET UP TESTING ENVIRONMENT OR MOUNT THE DRIVE
-#  57)  if POSITIONAL PARAMETER ${1} IS EQUAL TO 'test'
-#  58)  if TRUE then
-#  59-60)	echo testing messages
-#  61)  else if NOT TRUE
-#  62)	USE udiskctl RATHER THAN mount BECAUSE THIS IS HOW NAUTILUS FILE MANAGER DOES IT, THE MOUNT WILL HAVE THE SAME DEFAULTS AND IT DOOES NOT NEED TO BE ROOT (REQUIRING USER PASSWORD) AS mount DOES. -b, --block-device THE BLOCK DEVICE TO MOUNT.
+#  52)	IF THE CONDITIONAL IS TRUE then
+#  53)	PRINT A MESSAGE DISK IS MOUNTED
+#  54)	IF THE CONDITIONAL IS FALSE else
+#  55)  PRINT A MESSAGE DISK IS NOT MOUNTED
+#  56-62)	if, then, else CONDITIONAL COMPOUND COMMANDS TO SET UP TESTING ENVIRONMENT OR MOUNT THE DRIVE
+#  56)  if POSITIONAL PARAMETER ${1} IS EQUAL TO 'test'
+#  57)  if TRUE then
+#  58)	echo testing message
+#  59)  else if NOT TRUE
+#  60)	USE udiskctl RATHER THAN mount BECAUSE THIS IS HOW NAUTILUS FILE MANAGER DOES IT, THE MOUNT WILL HAVE THE SAME DEFAULTS AND IT DOOES NOT NEED TO BE ROOT (REQUIRING USER PASSWORD) AS mount DOES. -b, --block-device THE BLOCK DEVICE TO MOUNT.
 #		udiskctl mount -b /dev/disk/by-label/Backup_Data
-#  63-64)	CLOSE IF CONDITIONL COMPOUND COMMANDS
-#  66)	PREPEND THE MOUNTPOINT TO THE camera_dir VARIABLE USING findmnt
+#  61-62)	CLOSE IF CONDITIONL COMPOUND COMMANDS
+#  64)	PREPEND THE MOUNTPOINT TO THE camera_dir VARIABLE USING findmnt
 #		findmnt -n -o target /dev/disk/by-id/usb-"OLYMPUS_E-30"_G68508673-0:0-part1
 #			/media/$USER/OLY_E-30
 #		camera_dir=/media/$USER/OLY_E-30"/DCIM/100OLYMP/"
-#  67)	PREPEND THE MOUNTPOINT TO THE backup_dir VARIABLE USING findmnt
+#  65)	PREPEND THE MOUNTPOINT TO THE backup_dir VARIABLE USING findmnt
 #		findmnt -n -o target /dev/disk/by-label/"Backup_Data"
 #			/media/$USER/Backup_Data
 #		backup_dir=/media/$USER/Backup_Data"/My Pictures/"
-#  68)	loop COUNTS THE LOOPS FOR COPYING THE FILES. ORINGINALLY FOR TRACING IN THE FUNCTION variable_print_outs()
-#  70)	PRINTS OUT THE VARIABLES
+#  66)	loop COUNTS THE LOOPS FOR COPYING THE FILES. ORINGINALLY FOR TRACING IN THE FUNCTION variable_print_outs()
+#  68)  PRINTS OUT THE VARIABLES
 #		$backup_drive_label	=	Backup_Data
 #		$camera_name		=	OLYMPUS_E-30
 #		$camera_dir		=	/media/$USER/OLY_E-30/DCIM/100OLYMP/
@@ -256,21 +209,21 @@ if [[ ${1} == "test" ]]
 #		$exiftool_date_pattern	=	%Y/raw images/%m %b/%Y_%m_%d/
 #		$image_types[*]		=	ORF JPG jpg
 #  SEPERATED BY $'\n' NEWLINES OR $'\t' TAB SPACES
-#  72)	RESET SOME VARIABLES - target_array camera_file_list working_file_list backup_file_list - WHICH GET ADDED TO THEMSELVES IN ORDER TO APPEND EACH FILE TO THE ARRAY
-#  74-83)	 THE for LOOP EXECUTES COMMANDS ONCE FOR EACH MEMBER OF THE LIST WORDS WITH THE VARIABLE NAME TAKING THE VALUE OF THE WORD MATCHED FOR THAT RUN OF THE LOOP. 
+#  70)	RESET VARIABLE target_array WITH unset - VARIABLE GETS ADDED TO ITSELF IN ORDER TO APPEND EACH FILE TO THE ARRAY
+#  72-81)	 THE for LOOP EXECUTES COMMANDS ONCE FOR EACH MEMBER OF THE LIST WORDS WITH THE VARIABLE NAME TAKING THE VALUE OF THE WORD MATCHED FOR THAT RUN OF THE LOOP. 
 #		for NAME in WORDS; do COMMANDS; done
 #  CHECKS IF THE FILE EXTENSION EXISTS ON CAMERA AND THEN USES exiftool TO CREATE THE PATHS FOR THE FILES FROM METADATA AND APPEND THEM TO AN ARRAY. exiftool CAN BE CALLED ONCE WITH A LIST OF FILES TO READ AND OUTPUTS A LIST SEPERATED BY NEWLINES.
-# 74)	for LOOP TO CYCLE THROUGH THE IMAGE TYPES SPECIFIED IN "${image_types[@]}" (ALL MEMBERS OF THE ARRAY)
+# 72)	for LOOP TO CYCLE THROUGH THE IMAGE TYPES SPECIFIED IN "${image_types[@]}" (ALL MEMBERS OF THE ARRAY)
 #		for filename_extension in png ORF JPG jpg
 #			$filename_extension=png
-# 75)	do COMMANDS WITHIN LOOP
-# 76)	PRINT OUT 'FILE TYPE IS: png'
-# 77)	CREATE AN ARRAY OF THE FILES WITH THEIR PATHS.
+# 73)	do COMMANDS WITHIN LOOP
+# 74)	PRINT OUT 'FILE TYPE IS: png'
+# 75)	CREATE AN ARRAY OF THE FILES WITH THEIR PATHS.
 #		files=(/media/$USER/OLY_E-30/DCIM/100OLYMP/*.png)
 #  OR IN TESTING
 #		files=(./DCIM/100OLYMP/*.png)
 #  BASH WILL PASS * AS AN ARGUMENT IF IT CAN'T BE EXPANDED ie IF THERE ARE NO .png FILES IN THE CAMERA OR TESTING DIRECTORY AND './DCIM/100OLYMP/*.png' WILL BECOME ONLY ELEMENT OF THE ARRAY.
-# 78)	ACCESS THE FIRST ELEMEMT OF THE ARRAY AND TEST IT TO SEE IF IT IS A FILE IN ORDER TO USE continue TO RESTART THE for LOOP AVOIDING UNNESCESSARY PROCESSING AND AVOID exiftool ERRORS.
+# 76)	ACCESS THE FIRST ELEMEMT OF THE ARRAY AND TEST IT TO SEE IF IT IS A FILE IN ORDER TO USE continue TO RESTART THE for LOOP AVOIDING UNNESCESSARY PROCESSING AND AVOID exiftool ERRORS.
 #		[[ -a ./DCIM/100OLYMP/*.png ]]
 #  THE RESERVED WORD [[ IS A CONDITIONAL WHICH RETURNS A STATUS OF 0 SUCCESS OR 1 FAIL DEPENDANT ON THE EVALUATION OF [[ expression ]] COMPOUND COMMAND. THE BASH CONDITIONAL EXPRESSION -a file RETURNS TRUE (0) IF FILE EXISTS OR FALSE (1) IF IT DOES NOT. THE WORDS BETWEEN THE [[ AND ]] DO NOT UNDERGO WORD SPLITTING AND FILENAME EXPANSION BUT DOES PERFORM TILDE EXPANSION, PARAMETER AND VARIABLE EXPANSION, ARITHMETIC EXPANSION, COMMAND SUBSTITUTION, PROCESS SUBSTITUTION, AND QUOTE REMOVAL ON THOSE WORDS (THE EXPANSIONS THAT WOULD OCCUR IF THE WORDS WERE ENCLOSED IN DOUBLE QUOTES). THE PIPELINE OPERATORS && AND || ARE 'AND' AND 'OR' WHILST ; IS FOR THE CONSECUTIVE EXECUTION OF COMMANDS. THE TERMINATOR && CREATES AN 'AND' LIST OF COMMANDS WHERE SUBSEQUENT COMMANDS ARE EXECUTED IF THE FIRST COMMAND EXITS WITH A STATUS OF ZERO (SUCCESS).
 #		[[ -a /media/$USER/OLY_E-30/DCIM/100OLYMP/*.png ]]
@@ -278,8 +231,9 @@ if [[ ${1} == "test" ]]
 #  IF TEST IS TRUE RETURNS 0 (SUCCESS) AND PRINT OUT A NEWLINE AND EXTENSION EXISTS AND PROCEED WITH THE REST OF THE LOOP
 #		|| { echo $'\n'file extension png does not exist on camera$'\n'; continue; }
 # IF TEST IS FALSE PRINT OUT A NEWLINE AND FILE NAME DOES NOT EXIST AND continue TO THE START OF THE LOOP TO TEST THE NEXT FILE EXTENSION. THE {} AROUND THE 'OR COMMANDS GROUP THEM INTO A THE LIST TO BE EXECUTED IN THE CURRENT SHELL CONTEXT. NO SUBSHELL IS CREATED. THE SEMICOLON (OR NEWLINE) FOLLOWING LIST IS REQUIRED.
-#  79)	$IFS IS BOURNE SHELL VARIABLE CONTAINING A LIST OF CHARACTERS USED AS DELIMITERS TO SEPERATE FIELDS USED IN SHELL WORD SPLITTING AND EXPANSION, DEFAULT IS SPACE TAB NEWLINE. STORE THE CURRENT VALUE IN $old_IFS FOR EASY RESETTING THEN CHANGE $IFS TO COMMA AND NEWLINE.
-#  80)	USE exiftool WITH VARIABLE exiftool_date_pattern TO READ THE METADATA IN ALL THE IMAGE FILES OF THE CURRENT TYPE, AND PLACE THE -FileName AND -DateTimeOriginal TAGS SEPARATED BY COMAS INTO target_array TO CREATE A DIRECTORY NAMING PATTERN. IN THE ARRAY, FILENAMES ARE EVEN STARTING AT 0, PATHS ARE ODD STARTING AT 1 ALLOWING THE SCRIPT TO ACCESS INDIVIDUAL ELEMENTS.
+#  77)	$IFS IS BOURNE SHELL VARIABLE CONTAINING A LIST OF CHARACTERS USED AS DELIMITERS TO SEPERATE FIELDS USED IN SHELL WORD SPLITTING AND EXPANSION, DEFAULT IS SPACE TAB NEWLINE. STORE THE CURRENT VALUE IN $old_IFS FOR EASY RESETTING THEN CHANGE $IFS TO COMMA AND NEWLINE.
+#  78)  PRINT A MESSAGE TO TELL USER THAT EXIFTOOL IS WORKING
+#  79)	USE exiftool WITH VARIABLE exiftool_date_pattern TO READ THE METADATA IN ALL THE IMAGE FILES OF THE CURRENT TYPE, AND PLACE THE -FileName AND -DateTimeOriginal TAGS SEPARATED BY COMAS INTO target_array TO CREATE A DIRECTORY NAMING PATTERN. IN THE ARRAY, FILENAMES ARE EVEN STARTING AT 0, PATHS ARE ODD STARTING AT 1 ALLOWING THE SCRIPT TO ACCESS INDIVIDUAL ELEMENTS.
 #		exiftool -d "%Y/raw images/%m %b/%Y_%m_%d/" -FileName -DateTimeOriginal ./DCIM/100OLYMP/P421001.ORF
 # RETURNS
 #		======== ./DCIM/100OLYMP/P421001.ORF
@@ -293,32 +247,29 @@ if [[ ${1} == "test" ]]
 #		P421002.ORF,2024/raw images/04 Apr/2024_04_21/
 # THEREFORE TO APPEND THE OUTPUT OF exiftool TO THE ARRAY target_string USING THE '+=' OPERATOR:
 #		target_string+=("P421001.ORF,2024/raw images/04 Apr/2024_04_21/ NEWLINE P421002.ORF,2024/raw images/04 Apr/2024_04_21/") ETC
-#  81)	RESET THE $IFS DELIMETER SPECIAL PARAMETER TO DEFAULT VALUE STORED IN $old_IFS
-#  82)	CLOSE FOR LOOP
-#  84-108)	if; fi CONDITIONAL TO TEST OUT PASSING A BATCH OF FILES TO rsync BASED ON COMMAND LINE ARGUMENTS IN POSITIONAL PARAMETERS "--batch" AND USING A while LOOP AND IF CONDITIONALS TO CREATE BATCHES OF FILES FOR rsync. IF IT IS THE FIRST ITERATION OF THE LOOP SET file_list TO THE FULL PATH. IF THE PATH IS THE SAME AS THE PREVIOUS FILE APPEND THE FULL PATH TO THE VARIABLE file_list. OTHERWISE rsync THE BATCH TO THE PREVIOUS PATH AND SET file_list TO THE CURRENT PATH.
-#  84)	IF SPECIAL PARAMETER REPRESENTING ALL POSITIONAL PARAMETERS AS SEPERATE WORDS ie ARGUMENTS SUPPLIED TO THE SCRIPT, STARTING FROM ONE WHEN NOT DOUBLE QUOTED '${*}' CONTAINS THE STRING '--batch'
-#  85)	IF TRUE THEN DO COMMANDS
-#  86-104)	while; do; done LOOP CARRIES OUT COMMANDS WHILST A CONDITION IS UNMET
-#  86)	OPEN while LOOP AND USE SHELL ARITHMATIC AS CONDITION TO CARRY OUT THE COMMANDS IF LOOP COUNTER IS LESS THAN OR EQUAL TO THE NUMBER OF ELEMENTS IN THE TARGET ARRAY
-#  87)	IF TRUE DO COMMANDS
-#  88)	if CONDITIONAL OF SHELL ARITHMETIC TO TEST FOR FIRST ITERATION OF LOOP
-#  89)  then COMMANDS IF TRUE
-#  90)	COMMENT TO KEEP UP WITH LOGIC!
-#  91)	SET file_list ARRAY TO THE CAMERA DIRECTORY AND FILENAME IN target_array FOR THIS ITERATION. CHANGED TO AN ARRAY TO AVOID POSSIBILITY OF SPACES IN FILENAMES CAUSING rsync COMMAND TO FAIL
+#  80)	RESET THE $IFS DELIMETER SPECIAL PARAMETER TO DEFAULT VALUE STORED IN $old_IFS
+#  81)	CLOSE FOR LOOP
+#  83-104)	while; do; done LOOP CARRIES OUT COMMANDS WHILST A CONDITION IS UNMET
+#  83)	OPEN while LOOP AND USE SHELL ARITHMATIC AS CONDITION TO CARRY OUT THE COMMANDS IF LOOP COUNTER IS LESS THAN OR EQUAL TO THE NUMBER OF ELEMENTS IN THE TARGET ARRAY
+#  84)	IF TRUE DO COMMANDS
+#  85)	if CONDITIONAL OF SHELL ARITHMETIC TO TEST FOR FIRST ITERATION OF LOOP
+#  86)  then COMMANDS IF TRUE
+#  87)	COMMENT TO KEEP UP WITH LOGIC!
+#  88)	SET file_list ARRAY TO THE CAMERA DIRECTORY AND FILENAME IN target_array FOR THIS ITERATION. CHANGED TO AN ARRAY TO AVOID POSSIBILITY OF SPACES IN FILENAMES CAUSING rsync COMMAND TO FAIL
 #		/DCIM/100OLYMP/P421001.ORF
-#  92)	elif ELSE TEST IF PATH IN loop+1 (PATH IS SECOND ELEMENT OF ARRAY) IS THE SAME AS loop-1, THE PREVIOUS FILE PATH
-#  93)	IF TRUE then DO COMMANDS
-#  94)	COMMENT TO KEEP UP WITH LOGIC!
-#  95)	APPEND SOURCE PATH TO file_list ARRAY
+#  89)	elif ELSE TEST IF PATH IN loop+1 (PATH IS SECOND ELEMENT OF ARRAY) IS THE SAME AS loop-1, THE PREVIOUS FILE PATH
+#  90)	IF TRUE then DO COMMANDS
+#  91)	COMMENT TO KEEP UP WITH LOGIC!
+#  92)	APPEND SOURCE PATH TO file_list ARRAY
 #		/DCIM/100OLYMP/P421001.ORF /DCIM/100OLYMP/P421002.ORF
-#  96)	else DO COMMANDS
-#  97)	COMMENT TO KEEP UP WITH LOGIC!
-#  98)	SET working_path TO THE working_dir AND THE PREVIOUS FILE PATH BECAUSE WE ARE CLEARING THE LIST HAVING FOUND A PATH THAT DOESN'T MATCH THE PREVIOUS ONE
+#  93)	else DO COMMANDS
+#  94)	COMMENT TO KEEP UP WITH LOGIC!
+#  95)	SET working_path TO THE working_dir AND THE PREVIOUS FILE PATH BECAUSE WE ARE CLEARING THE LIST HAVING FOUND A PATH THAT DOESN'T MATCH THE PREVIOUS ONE
 #		./working/2024/raw images/04 Apr/2024_04_21/
-#  99)	SET backup_path TO THE backup_dir AND THE PREVIOUS FILE PATH BECAUSE WE ARE CLEARING THE LIST HAVING FOUND A PATH THAT DOESN'T MATCH THE PREVIOUS ONE
+#  96)	SET backup_path TO THE backup_dir AND THE PREVIOUS FILE PATH BECAUSE WE ARE CLEARING THE LIST HAVING FOUND A PATH THAT DOESN'T MATCH THE PREVIOUS ONE
 #		./backup/2024/raw images/04 Apr/2024_04_21/
-#  100)	PRINT A MESSAGE transferring to WORKING AND BACKUP PATHS
-#  101)	THE rsync COMMAND TO MAKE THE DIRECTORY PATH AND COPY FILES TO THE WORKING DIRECTORY PUT INTO THE BACKGROUND WITH & TERMINATOR, ALLOWING THE SECOND rsync TO CONTINUE ASYNCHRONOUSLY.
+#  97)	PRINT A MESSAGE transferring to WORKING AND BACKUP PATHS
+#  98)	THE rsync COMMAND TO MAKE THE DIRECTORY PATH AND COPY FILES TO THE WORKING DIRECTORY PUT INTO THE BACKGROUND WITH & TERMINATOR, ALLOWING THE SECOND rsync TO CONTINUE ASYNCHRONOUSLY.
 #		rsync --mkpath -a "/media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF /media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF" "/home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/"&
 #		-- mkpath		CREATE DESTINATION'S MISSING PATH COMPONENTS
 #		-a --archive		ARCHIVE MODE, IMPLIES
@@ -329,106 +280,21 @@ if [[ ${1} == "test" ]]
 #						-g	PRESERVE GROUP
 #						-o	PRESERVE OWNER
 #						-D	PRESERVE DEVICE / SPECIAL FILES
-#  102)	rsync COMMAND FOR BACKUP DIRECTORY
+#  99)	rsync COMMAND FOR BACKUP DIRECTORY
 #		rsync --mkpath -a "/media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF" "/medis/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF"
-#  103)	wait COMMAND PAUSES THE SCRIPT UNTIL ALL BACKGROUND PROCESSES COMPLETE.
-#  104)	SET file_list ARRAY TO THE CAMERA DIRECTORY AND FILENAME IN target_array FOR THIS ITERATION
+#  100)	wait COMMAND PAUSES THE SCRIPT UNTIL ALL BACKGROUND PROCESSES COMPLETE.
+#  101)	SET file_list ARRAY TO THE CAMERA DIRECTORY AND FILENAME IN target_array FOR THIS ITERATION
 #		/DCIM/100OLYMP/P421001.ORF
-#  105)	CLOSE THE if BLOCK
-#  106)	INCREMENT THE LOOP COUNTER BY TWO TO ACCESS THE NEXT FILENAME AND PATH PAIR.
-#  107) CLOSE THE while LOOP
-#  108) CLOSE THE if BLOCK
-#  110-146)	while LOOP TO READ CONTENTS OF ARRAY WHILE THE LOOP IS LESS THAN THE NUMBER OF ELEMENTS IN THE ARRAY AND rsync THE FILES. while CONDITION; do COMMANDS; done
-#  110)	OPEN while LOOP. CONDITION TO TEST IS WHILE LOOP COUNTER $loop IS LESS THAN THE NUMBER OF ELEMENTS IN $target_array
-#  111)	do COMMANDS WITHIN LOOP
-#  112)	PRINT A CLEAR LINE ESCAPE CHARACTER TO OVERWRITE PREVIOUS rysnc OUTPUT USING echo -en WHERE -e IS ALLOW INTERPRETAION OF BACKSLASH ESCAPE CHARACTERS AND -n IS SUPPRESS TRAILING NEWLINE. esc IS DECIMAL 27 OCTAL 033 HEX 0x1B C-ESCAPE \e AND CTRL-KEY ^[ . NOTE \e IS NOT GUARANTEED TO WORK IN ALL LANGUAGES AND COMPILERS. ESC[2K ERASE THE ENTIRE LINE (WILL NOT MOVE THE CURSOR - IT WILL REMAIN AT POSITION IT WAS AT BEFORE THE LINE WAS ERASED. USE \r CARRIAGE RETURN TO MOVE TOTHE START OF THE LINE). ALLOWS OVERWRITING OF LONGER rync OUTPUTS WHEN DIRECTORIES ARE CREATED AND FILES COPIED OR CHECKED. IE '\033[2k' AND '\e[2k' ARE EQUIVALENT ANSI ESCAPE SEQUENCES. THE CARRIAGE RETURN IS ACHEIVED WITH tr IN THE rsync COMMAND.
-#  113-140)	if; then; elif; else; fi CONDITIONAL TO TEST OUT DIFFERENT rsync STRATEGIES BASED ON COMMAND LINE ARGUMENTS IN POSITIONAL PARAMETERS '--rsynca', '--rsyncb', '--rsyncc', '--rsyncd'.
-#  113)	IF SPECIAL PARAMETER REPRESENTING ALL POSITIONAL PARAMETERS AS SEPERATE WORDS ie ARGUMENTS SUPPLIED TO THE SCRIPT, STARTING FROM ONE WHEN NOT DOUBLE QUOTED '${*}' CONTAINS THE STRING '--rsynca'
-#  114)	IF TRUE THEN DO COMMANDS
-#  115)	PRINT EXPLANATION OF rsync STRATEGY WHERE echo -e ENABLES BACKSLASH ESCAPE CHARACTERS AND '\eM' MOVES THE CURSOR UP ONE LINE OVERWRITING THE  PREVIOUS ECHO AND '${*}' IS ALL THE ARGUMENTS SUPPLIED TO THE SCRIPT.
-#  116)	THE rsync COMMAND TO MAKE THE DIRECTORY PATH AND COPY FILES TO THE WORKING DIRECTORY. THE OUTPUT IS PIPED THROUGH tr. THIS IS COMMAND TO TRANSLATE OR DELETE CHARACTERS AND IS USED TO REPLACE THE TRAILING newline ESCAPE CHARACTER FROM RSYNC OUTPUT WITH A CARRIAGE RETURN TO MAKE OUTPUT OVERWRITE ITSELF. THE COMMANDS ARE GROUPED WITHIN {} AND THEN PUT INTO THE BACKGROUND WITH & TERMINATOR, ALLOWING THE SECOND rsync TO CONTINUE ASYNCHRONOUSLY.
-#		{ rsync --mkpath --info name2 -ah "/media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF" "/home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF"| tr '\n' '\r' }&
-#		-- mkpath		CREATE DESTINATION'S MISSING PATH COMPONENTS
-#		-- info name2		INFORMATION VERBOSITY
-#		-h --human readable	OUTPUT NUMBERS IN HUMAN READABLE FORMAT
-#		-a --archive		ARCHIVE MODE, IMPLIES
-#						-r	RECURSIVE
-#						-l	COPY LINKS
-#						-p	PRESERVE PERMISSIONS
-#						-t	PRESERVE MODIFICATION TIMES
-#						-g	PRESERVE GROUP
-#						-o	PRESERVE OWNER
-#						-D	PRESERVE DEVICE / SPECIAL FILES
-#  117)	rsync COMMAND FOR BACKUP DIRECTORY
-#		rsync --mkpath --info name2 -ah "/media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF" "/medis/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF" | tr '\n' '\r'
-#  118)	wait COMMAND PAUSES THE SCRIPT UNTIL ALL BACKGROUND PROCESSES COMPLETE.
-#  119)	ELSE IF CONDITIONAL TO TEST FOR ARGUMENT '--rsyncb' IN POSITIONAL PARAMETERS
-#  120)	IF TRUE THEN DO COMMANDS
-#  121)	PRINT STRATEGY EXPLANATION
-#  122)	rsync | tr COMMANDS FOR WORKING GROUPED WITH () AND THEREFORE RUN IN SUBSHELL THEN MOVED TO BACKGROUND WITH & TERMINATOR
-#  123)	rsync | tr COMMANDS FOR BACKUP
-#  124)	wait COMMAND PAUSES FOR ALL BACKGROUND TASKS
-#  125)	ELSE IF CONDITIONAL TO TEST FOR ARGUMENT '--rsyncc' IN POSITIONAL PARAMETERS
-#  126)	IF TRUE THEN DO COMMANDS
-#  127)	PRINT STRATEGY EXPLANATION
-#  128)	rsync | tr COMMANDS FOR WORKING THEN MOVED TO BACKGROUND WITH & TERMINATOR
-#  129)	rsync | tr COMMANDS FOR BACKUP
-#  130)	wait COMMAND PAUSES FOR ALL BACKGROUND TASKS
-#  131)	ELSE IF CONDITIONAL TO TEST FOR ARGUMENT '--rsyncd' IN POSITIONAL PARAMETERS
-#  132)	IF TRUE THEN DO COMMANDS
-#  133)	PRINT STRATEGY EXPLANATION
-#  134)	rsync | tr COMMANDS FOR WORKING GROUPED WITH {} THEN MOVED TO BACKGROUND WITH & TERMINATOR
-#  135)	rsync | tr COMMANDS FOR BACKUP GROUPED WITH {} THEN MOVED TO BACKGROUND WITH & TERMINATOR
-
-#  136)	ELSE IF FALSE THEN DO COMMANDS
-#  137)	PRINT STRATEGY EXPLANATION
-#  138)	rsync | tr COMMANDS FOR WORKING
-#  139)	rsync | tr COMMANDS FOR BACKUP
-#  140)	CLOSE IF BLOCK
-#  142)	CREATE A LIST OF THE FILES TO BE COPIED WITH A NEWLINE $'\n' IN AN ARRAY BY USING FIND COMMAND TO CONFIRM COPIES.
-#  		find PATH -name PATTERN RETURNS FILENAME WITH PATH
-#			-name TEST FOR BASE OF FILENAME (PATH REMOVED) TO MATCH PATTERN IN PATH
-#		find "/media/$USER/OLY_E-30/DCIM/100OLYMP" -name "P421001.ORF"
-#			/media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF
-#		camera_file_list[1001]="/media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF"$'\n'
-#  143)	CREATE A LIST OF THE FILES LOCATED ON WORKING SYSTEM WITH A NEWLINE $'\n' IN AN ARRAY BY USING FIND COMMAND
-#		find "/home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21" -name "P421001.ORF"
-#			/home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF
-#		working_file_list[1001]="/home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF""$'\n'
-#  144)	CREATE A LIST OF THE FILES LOCATED ON BACKUP SYSTEM WITH A NEWLINE $'\n' IN AN ARRAY BY USING FIND COMMAND
-#		find "/media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21" -name "P421001.ORF"
-#			/media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF
-#		backup_file_list[1001]="/home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF""$'\n'
-#  145)	USE SHELL ARITHMETIC TO ADD 2 TO THE VALUE OF loop AT END OF LOOP. ADDING TWO BECAUSE THE ARRAY CONTAINS ALTERNATING FILENAMES AND PATHS AND WE WANT TO MOVE TO NEXT FILENAME.
+#  102)	CLOSE THE if BLOCK
+#  103)	USE SHELL ARITHMETIC TO ADD 2 TO THE VALUE OF loop AT END OF LOOP. ADDING TWO BECAUSE THE ARRAY CONTAINS ALTERNATING FILENAMES AND PATHS AND WE WANT TO MOVE TO NEXT FILENAME.
 #		loop = loop + 2
-#  146)	CLOSE loop
-
-#  148)	PRINT OUT A SUMMARY LIST OF FILES ON THE CAMERA USING SHELL PARAMETER EXPANSION TO REMOVE THE PATH FROM THE VARIABLE $camera_file_list[*]} ${ parameter##word } WHERE word IS PATTERN MATCHED TO parameter, IN THIS CASE THE VARIABLE $camera_dir.IF THE MATCH IS MADE TO THE BEGINNING OF parameter THE RESULT IS THE DELETION OF THE LONGEST MATCHING PATTERN. ${#name[*]} IS THE NUMBER OF ELEMENTS IN THE ARRAY camera_file_list
-#		"${/media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF\n /media/$USER/OLY_E-30/DCIM/100OLYMP/P421002.ORF\n /media/$USER/OLY_E-30/DCIM/100OLYMP/P421003.ORF\n ## "/media/$USER/OLY_E-30/DCIM/100OLYMP/"}" ${# /media/$USER/OLY_E-30/DCIM/100OLYMP/P421001.ORF\n /media/$USER/OLY_E-30/DCIM/100OLYMP/P421002.ORF\n /media/$USER/OLY_E-30/DCIM/100OLYMP/P421003.ORF\n}
-#			camera file list
-#			 P421001.ORF
-#			 P421002.ORF
-#			 P421003.ORF
-#			 3 files
-#  149)	PRINT OUT A SUMMARY LIST OF FILES IN THE WORKING DIRECTORY WHERE ${#name[*]} IS THE NUMBER OF ELEMENTS IN THE ARRAY working_file_list
-#		"${/home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF/n /home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421002.ORF/n /home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421003.ORF/n ## "/home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/"}" ${# /home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF/n /home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421002.ORF/n /home/$USER/My Pictures/2024/raw images/04 Apr/2024_04_21/P421003.ORF/n}
-#			working file list
-#			 ./working/2024/raw images/04 Apr/2024_04_21/P421001.ORF
-#			 ./working/2024/raw images/04 Apr/2024_04_21/P421002.ORF
-#			 ./working/2024/raw images/04 Apr/2024_04_21/P421003.ORF
-#			 3 files
-#  150)	PRINT OUT A SUMMARY LIST OF FILES IN THE BACKUP DIRECTORY WHERE ${#name[*]} IS THE NUMBER OF ELEMENTS IN THE ARRAY working_file_list
-#		"${/media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF/n /media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421002.ORF/n /media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421003.ORF/n ## "/media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21"}" ${# /media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421001.ORF/n /media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421002.ORF/n /media/$USER/Backup_Data/My Pictures/2024/raw images/04 Apr/2024_04_21/P421003.ORF/n}
-#			backup file list
-#			 ./backup/2024/raw images/04 Apr/2024_04_21/P421001.ORF
-#			 ./backup/2024/raw images/04 Apr/2024_04_21/P421002.ORF
-#			 ./backup/2024/raw images/04 Apr/2024_04_21/P421003.ORF
-#			 3 files
-#  152-156)	IF CONDITIONAL TO REMOVE TEST DIRECTORIES
-#  152)	TEST FOR POSITIONAL PARAMETER 'test'
-#  153)	IF TRUE THEN DO COMMANDS
-#  154)	PRINT MEESAGE 'DELETING TEST DIRECTORIES'
-#  155)	REMOVE DIRECTORIES AND FILES WHERE
+#  104) CLOSE THE while LOOP
+#  106-110)	IF CONDITIONAL TO REMOVE TEST DIRECTORIES
+#  106)	TEST FOR POSITIONAL PARAMETER 'test'
+#  107)	IF TRUE THEN DO COMMANDS
+#  108)	PRINT MEESAGE 'DELETING TEST DIRECTORIES'
+#  109)	REMOVE DIRECTORIES AND FILES WHERE
 #	rm	-r -R --recursive REMOVES FILES AND DIRECTORIES RECURSIVELY
-#		-I INTERACTIVE MODE PROMPTS ONCE BEFORE REMOVING MORE THAN THREE FILES OR WHEN IN RECURSIVE MODE
-#  156) CLOSE if BLOCK
+#  110) CLOSE if BLOCK
+#  112) CALL variable_print_outs DEBUGGING FUNCTION AND PASS THE ARGUMENT (THE BASH VARIABLE FOR CURRENT LINE NUMBER) "$LINENO". COMMENTED OUT FOR GENERAL USE.
+
