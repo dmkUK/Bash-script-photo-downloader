@@ -80,7 +80,6 @@ unset mapfile_arrayname
 
 echo "--8-------------------------------------"
 
-# set -v
 echo "# key0" > ./config.file
 echo "value0" >> ./config.file
 echo "# key1" >> ./config.file
@@ -99,6 +98,65 @@ echo "number of elements:" "${#mapfile_arrayname[@]}"$'\n'"list of elements:" "$
 declare -p associative_arrayname
 echo "number of elements:" "${#associative_arrayname[@]}"$'\n'"keys:" "${!associative_arrayname[@]}"$'\n'"values:" "${associative_arrayname[@]}"
 unset mapfile_arrayname associative_arrayname counter
+
+echo "--9------------------------------------"
+
+# set -v
+
+echo "# backup_drive_label"$'\n'"Backup_Data"$'\n'"# camera_name"$'\n'"OLYMPUS_E-30"$'\n'"# camera_dir"$'\n'"/DCIM/100OLYMP/"$'\n'"# working_dir"$'\n'"/home/My Home/My Pictures/"$'\n'"# backup_dir"$'\n'"/My Pictures/"$'\n'"# image_types"$'\n'"(png ORF JPG jpg)"$'\n'"# exiftool_date_pattern"$'\n'"%Y/raw images/%m %b/%Y_%m_%d/" > ./config.file
+cat ./config.file
+readarray -t read_array < ./config.file
+declare -A config_array
+declare -i i=0
+while ((i < "${#read_array[@]}"))
+do
+  config_array[${read_array[i]#'# '}]=${read_array[i+1]}
+  ((i+=2))
+done
+declare -p read_array
+echo "number of elements:" "${#read_array[@]}"$'\n'"list of elements:" "${read_array[@]}"
+declare -p config_array
+echo "number of elements:" "${#config_array[@]}"$'\n'"keys:" "${!config_array[@]}"$'\n'"values:" "${config_array[@]}"
+
+echo "${config_array[image_types]}"
+
+unset read_array config_array i
+# set +v
+
+echo "--10------------------------------------"
+
+# set -v
+
+function read_config_file ()
+{
+	echo '***start of function read_config_file ***'
+	cat ./config.file
+	readarray -t read_array < ./config.file
+	declare -Ag config_array
+	declare -i i=0
+	while ((i < "${#read_array[@]}"))
+	do
+	  config_array[${read_array[i]#'# '}]=${read_array[i+1]}
+	  ((i+=2))
+	done
+	declare -p read_array
+	echo "number of elements:" "${#read_array[@]}"$'\n'"list of elements:" "${read_array[@]}"
+	declare -p config_array
+	echo "number of elements:" "${#config_array[@]}"$'\n'"keys:" "${!config_array[@]}"$'\n'"values:" "${config_array[@]}"
+}
+
+[[ ! -a config.file ]] && echo "# backup_drive_label"$'\n'"Backup_Data"$'\n'"# camera_name"$'\n'"OLYMPUS_E-30"$'\n'"# camera_dir"$'\n'"/DCIM/100OLYMP/"$'\n'"# working_dir"$'\n'"/home/My Home/My Pictures/"$'\n'"# backup_dir"$'\n'"/My Pictures/"$'\n'"# image_types"$'\n'"(png ORF JPG jpg)"$'\n'"# exiftool_date_pattern"$'\n'"%Y/raw images/%m %b/%Y_%m_%d/" > ./config.file
+
+echo 'outside the function but before it is called config_array[image types] ='
+echo "${config_array[image_types]}"
+
+read_config_file
+
+echo 'outside the function after it is called config_array[image types] ='
+echo "${config_array[image_types]}"
+declare -p config_array
+
+unset read_array config_array i
 # set +v
 
 echo "---------------------------------------"
@@ -110,6 +168,7 @@ echo "---------------------------------------"
 # set -v turns on verbose mode making script echo commands to std out, set +v turns this off
 # declare -A to make NAMEs associative arrays (if supported)
 #         -p display the attributes and value of each NAME
+#	  -g forces global scope even inside functions.
 # "${<var_name>[<subscript>]#<word>}" matches <word> to beginning of the value of the parameter. The result is the shortest matching pattern is deleted. ## deletes the longest matching pattern.
 # "${<var_name>[<subscript>]%<word>}" matches <word> to end of the value of the parameter. The result is the shortest matching pattern is deleted. %% deletes the longest matching pattern.
 
@@ -118,3 +177,6 @@ echo "---------------------------------------"
 # assignment of values to an array
 # myArr["${var1##*=}"]="${var2##*=}"
 # matching and removing part of variable with wildcard
+
+# [[ ! -a <file_name> ]] && tests if the file does not exist and executes the following command on success
+
