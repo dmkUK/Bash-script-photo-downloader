@@ -1,0 +1,120 @@
+#! /bin/bash
+
+echo "--1-------------------------------------"
+
+echo "anne alice" "angie""anita" > ./config.file
+echo "brad"$'\n'"bob"$'\n'"bill"$'\n'"Bill 2"$'\n'"ben" >> ./config.file
+cat ./config.file
+read -d '' -a read_arrayname < ./config.file
+declare -p read_arrayname
+echo "${read_arrayname[@]}"
+echo "number of elements:" "${#read_arrayname[@]}"$'\n'"list of elements:" "${read_arrayname[@]}"
+unset read_arrayname
+
+echo "--2-------------------------------------"
+
+echo "anne" "alice" "angie" "anita" > ./config.file
+echo "brad"$'\n'"bob"$'\n'"bill"$'\n'"Bill 2"$'\n'"ben" >> ./config.file
+cat ./config.file
+readarray -d $'\n' mapfile_arrayname < ./config.file
+declare -p mapfile_arrayname
+echo "number of elements:" "${#mapfile_arrayname[@]}"$'\n'"list of elements:" "${mapfile_arrayname[@]}"
+unset mapfile_arrayname
+
+echo "--3-------------------------------------"
+
+echo "anne" "alice" "angie" "anita" > ./config.file
+echo "brad"$'\n'"bob"$'\n'"bill"$'\n'"Bill 2"$'\n'"ben" >> ./config.file
+cat ./config.file
+readarray mapfile_arrayname < ./config.file
+declare -p mapfile_arrayname
+echo "number of elements:" "${#mapfile_arrayname[@]}"$'\n'"list of elements:" "${mapfile_arrayname[@]}"
+unset mapfile_arrayname
+
+echo "--4-------------------------------------"
+
+echo "key0" "property0" > ./config.file
+echo "key1" "property1" >> ./config.file
+echo "key2" "property2" >> ./config.file
+cat ./config.file
+read -d '' -a read_arrayname < ./config.file
+declare -p read_arrayname
+echo "number of elements:" "${#read_arrayname[@]}"$'\n'"list of elements:" "${read_arrayname[@]}"$'\n'"size of element[0]:" "${#read_arrayname[0]}"
+unset read_arrayname
+
+echo "--5-------------------------------------"
+
+echo "key0" "property0" > ./config.file
+echo "key1" "property1" >> ./config.file
+echo "key2" "property2" >> ./config.file
+cat ./config.file
+readarray -d ' ' mapfile_arrayname < ./config.file
+declare -p mapfile_arrayname
+echo "number of elements:" "${#mapfile_arrayname[@]}"$'\n'"list of elements:" "${mapfile_arrayname[@]}"$'\n'"size of element[0]:" "${#mapfile_arrayname[0]}"
+unset mapfile_arrayname
+
+echo "--6-------------------------------------"
+
+echo "key0"="property0" > ./config.file
+echo "key1"="property1" >> ./config.file
+echo "key2"="property2" >> ./config.file
+cat ./config.file
+readarray mapfile_arrayname < config.file
+declare -p mapfile_arrayname
+echo "number of elements:" "${#mapfile_arrayname[@]}"$'\n'"list of elements:" "${mapfile_arrayname[@]}"$'\n'"size of element[0]:" "${#mapfile_arrayname[0]}"
+echo "value of [0] less 'key0=':" "${mapfile_arrayname[0]#key0=}"
+echo "value of [0] less '=*':" "${mapfile_arrayname[0]%=*}"
+unset mapfile_arrayname
+
+echo "--7-------------------------------------"
+
+echo "key0"="property0" > ./config.file
+echo "key1"="property1" >> ./config.file
+echo "key2"="property2" >> ./config.file
+cat ./config.file
+readarray -d "=" mapfile_arrayname < config.file
+declare -p mapfile_arrayname
+echo "number of elements:" "${#mapfile_arrayname[@]}"$'\n'"list of elements:" "${mapfile_arrayname[@]}"$'\n'"size of element[0]:" "${#mapfile_arrayname[0]}"
+echo "value of [0] less '=':" "${mapfile_arrayname[0]%=}"
+unset mapfile_arrayname
+
+echo "--8-------------------------------------"
+
+# set -v
+echo "# key0" > ./config.file
+echo "value0" >> ./config.file
+echo "# key1" >> ./config.file
+echo "value1" >> ./config.file
+cat ./config.file
+readarray -t mapfile_arrayname < ./config.file
+declare -A associative_arrayname
+declare -i counter=0
+while ((counter < "${#mapfile_arrayname[@]}"))
+do
+  associative_arrayname[${mapfile_arrayname[counter]#'# '}]=${mapfile_arrayname[counter+1]}
+  ((counter+=2))
+done
+declare -p mapfile_arrayname
+echo "number of elements:" "${#mapfile_arrayname[@]}"$'\n'"list of elements:" "${mapfile_arrayname[@]}"
+declare -p associative_arrayname
+echo "number of elements:" "${#associative_arrayname[@]}"$'\n'"keys:" "${!associative_arrayname[@]}"$'\n'"values:" "${associative_arrayname[@]}"
+unset mapfile_arrayname associative_arrayname counter
+# set +v
+
+echo "---------------------------------------"
+
+# read -a array	assign the words read to sequential indices of the array variable ARRAY, starting at zero
+#      -d delim continue until the first character of DELIM is read, rather than newline
+# readarray -d delim Use DELIM to terminate lines, instead of newline
+#           -t Remove a trailing DELIM from each line read (default newline)
+# set -v turns on verbose mode making script echo commands to std out, set +v turns this off
+# declare -A to make NAMEs associative arrays (if supported)
+#         -p display the attributes and value of each NAME
+# "${<var_name>[<subscript>]#<word>}" matches <word> to beginning of the value of the parameter. The result is the shortest matching pattern is deleted. ## deletes the longest matching pattern.
+# "${<var_name>[<subscript>]%<word>}" matches <word> to end of the value of the parameter. The result is the shortest matching pattern is deleted. %% deletes the longest matching pattern.
+
+# myArr=(bill jones bob smith)
+# myArr=("${var1}" "${var2}") 
+# assignment of values to an array
+# myArr["${var1##*=}"]="${var2##*=}"
+# matching and removing part of variable with wildcard
