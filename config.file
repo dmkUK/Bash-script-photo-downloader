@@ -12,3 +12,8 @@ OLYMPUS_E-30
 (png ORF JPG jpg)
 # exiftool_date_pattern
 %Y/raw images/%m %b/%Y_%m_%d/
+
+*********************************************
+This is the configuration for photodownloader
+Do not change the lines beginning with a #
+*********************************************

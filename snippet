@@ -126,12 +126,13 @@ unset read_array config_array i
 echo "--10------------------------------------"
 
 # set -v
+rm -I ./config.file
 
 function read_config_file ()
 {
 	echo '***start of function read_config_file ***'
 	cat ./config.file
-	readarray -t read_array < ./config.file
+	readarray -tn 14 read_array < ./config.file
 	declare -Ag config_array
 	declare -i i=0
 	while ((i < "${#read_array[@]}"))
@@ -143,9 +144,11 @@ function read_config_file ()
 	echo "number of elements:" "${#read_array[@]}"$'\n'"list of elements:" "${read_array[@]}"
 	declare -p config_array
 	echo "number of elements:" "${#config_array[@]}"$'\n'"keys:" "${!config_array[@]}"$'\n'"values:" "${config_array[@]}"
+	echo '***end of function read_config_file ***'
 }
 
-[[ ! -a config.file ]] && echo "# backup_drive_label"$'\n'"Backup_Data"$'\n'"# camera_name"$'\n'"OLYMPUS_E-30"$'\n'"# camera_dir"$'\n'"/DCIM/100OLYMP/"$'\n'"# working_dir"$'\n'"/home/My Home/My Pictures/"$'\n'"# backup_dir"$'\n'"/My Pictures/"$'\n'"# image_types"$'\n'"(png ORF JPG jpg)"$'\n'"# exiftool_date_pattern"$'\n'"%Y/raw images/%m %b/%Y_%m_%d/" > ./config.file
+[[ ! -a config.file ]] && echo "# backup_drive_label"$'\n'"Backup_Data"$'\n'"# camera_name"$'\n'"OLYMPUS_E-30"$'\n'"# camera_dir"$'\n'"/DCIM/100OLYMP/"$'\n'"# working_dir"$'\n'"/home/My Home/My Pictures/"$'\n'"# backup_dir"$'\n'"/My Pictures/"$'\n'"# image_types"$'\n'"(png ORF JPG jpg)"$'\n'"# exiftool_date_pattern"$'\n'"%Y/raw images/%m %b/%Y_%m_%d/"$'\n'"*********************************************"$'\n'"This is the configuration for photodownloader"$'\n'"Do not change the lines begining with a #" > ./config.file
+[[ -a config.file ]] && echo "hello config.file exists"
 
 echo 'outside the function but before it is called config_array[image types] ='
 echo "${config_array[image_types]}"
@@ -159,16 +162,139 @@ declare -p config_array
 unset read_array config_array i
 # set +v
 
+echo "--11------------------------------------"
+
+# set -v
+rm -I ./config.file
+
+function read_config_file ()
+{
+	echo '***start of function read_config_file ***'
+	cat ./config.file
+	readarray -tn 14 read_array < ./config.file
+	declare -Ag config_array
+	declare -i i=0
+	while ((i < "${#read_array[@]}"))
+	do
+	  config_array[${read_array[i]#'# '}]=${read_array[i+1]}
+	  ((i+=2))
+	done
+	declare -p read_array
+	echo "number of elements:" "${#read_array[@]}"$'\n'"list of elements:" "${read_array[@]}"
+	declare -p config_array
+	echo "number of elements:" "${#config_array[@]}"$'\n'"keys:" "${!config_array[@]}"$'\n'"values:" "${config_array[@]}"
+	echo '***end of function read_config_file ***'
+}
+
+if [[ ! -a config.file ]]
+	then
+		echo "# backup_drive_label
+Backup_Data
+# camera_name
+OLYMPUS_E-30
+# camera_dir
+/DCIM/100OLYMP/
+# working_dir
+/home/My Home/My Pictures/
+# backup_dir
+/My Pictures/
+# image_types
+(png ORF JPG jpg)
+# exiftool_date_pattern
+%Y/raw images/%m %b/%Y_%m_%d/
+
+*********************************************
+This is the configuration for photodownloader
+Do not change the lines beginning with a #" > ./config.file
+	else
+		echo "config.file exists"
+fi
+
+echo 'outside the function but before it is called config_array[image types] ='
+echo "${config_array[image_types]}"
+
+read_config_file
+
+echo 'outside the function after it is called config_array[image types] ='
+echo "${config_array[image_types]}"
+declare -p config_array
+
+unset read_array config_array i
+# set +v
+
+echo "--12------------------------------------"
+
+# set -v
+rm -I ./config.file
+
+function read_config_file ()
+{
+	echo '***start of function read_config_file ***'
+	cat ./config.file
+	readarray -tn 14 read_array < ./config.file
+	declare -Ag config_array
+	declare -i i=0
+	while ((i < "${#read_array[@]}"))
+	do
+	  config_array[${read_array[i]#'# '}]=${read_array[i+1]}
+	  ((i+=2))
+	done
+	declare -p read_array
+	echo "number of elements:" "${#read_array[@]}"$'\n'"list of elements:" "${read_array[@]}"
+	declare -p config_array
+	echo "number of elements:" "${#config_array[@]}"$'\n'"keys:" "${!config_array[@]}"$'\n'"values:" "${config_array[@]}"
+	echo '***end of function read_config_file ***'
+}
+
+function check_config_file ()
+{
+	echo "creating config.file"
+	[[ ! -a config.file ]] && echo "# backup_drive_label
+Backup_Data
+# camera_name
+OLYMPUS_E-30
+# camera_dir
+/DCIM/100OLYMP/
+# working_dir
+/home/My Home/My Pictures/
+# backup_dir
+/My Pictures/
+# image_types
+(png ORF JPG jpg)
+# exiftool_date_pattern
+%Y/raw images/%m %b/%Y_%m_%d/
+
+*********************************************
+This is the configuration for photodownloader
+Do not change the lines beginning with a #
+*********************************************" > ./config.file
+}
+
+echo 'outside the function but before it is called config_array[image types] ='
+echo "${config_array[image_types]}"
+
+check_config_file
+read_config_file
+
+echo 'outside the function after it is called config_array[image types] ='
+echo "${config_array[image_types]}"
+declare -p config_array
+
+unset read_array config_array i
+# set +v
+
 echo "---------------------------------------"
+
 
 # read -a array	assign the words read to sequential indices of the array variable ARRAY, starting at zero
 #      -d delim continue until the first character of DELIM is read, rather than newline
 # readarray -d delim Use DELIM to terminate lines, instead of newline
 #           -t Remove a trailing DELIM from each line read (default newline)
+#           -n count  Copy at most COUNT lines.  If COUNT is 0, all lines are copied
 # set -v turns on verbose mode making script echo commands to std out, set +v turns this off
 # declare -A to make NAMEs associative arrays (if supported)
 #         -p display the attributes and value of each NAME
-#	  -g forces global scope even inside functions.
+#         -g forces global scope even inside functions.
 # "${<var_name>[<subscript>]#<word>}" matches <word> to beginning of the value of the parameter. The result is the shortest matching pattern is deleted. ## deletes the longest matching pattern.
 # "${<var_name>[<subscript>]%<word>}" matches <word> to end of the value of the parameter. The result is the shortest matching pattern is deleted. %% deletes the longest matching pattern.
 
