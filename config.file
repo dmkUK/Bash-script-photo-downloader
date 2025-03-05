@@ -1,19 +1,12 @@
-# backup_drive_label
-Backup_Data
-# camera_name
-OLYMPUS_E-30
-# camera_dir
-/DCIM/100OLYMP/
-# working_dir
-/home/My Home/My Pictures/
-# backup_dir
-/My Pictures/
-# image_types
-(png ORF JPG jpg)
-# exiftool_date_pattern
-%Y/raw images/%m %b/%Y_%m_%d/
+backup_drive_label=Backup_Data
+camera_name=OLYMPUS_E-30
+camera_dir=/DCIM/100OLYMP/
+working_dir=/home/My Home/My Pictures/
+backup_dir=/My Pictures/
+image_types=(png ORF JPG jpg)
+exiftool_date_pattern=%Y/raw images/%m %b/%Y_%m_%d/
 
-*********************************************
-This is the configuration for photodownloader
-Do not change the lines beginning with a #
-*********************************************
+#**********************************************
+# This is the configuration for photodownloader
+# Do not change keys (the section prior to '=')
+#**********************************************

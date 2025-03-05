@@ -225,7 +225,7 @@ unset read_array config_array i
 echo "--12------------------------------------"
 
 # set -v
-rm -I ./config.file
+# rm -I ./config.file
 
 function read_config_file ()
 {
@@ -283,8 +283,81 @@ declare -p config_array
 unset read_array config_array i
 # set +v
 
-echo "---------------------------------------"
+echo "--13------------------------------------"
 
+# set -v
+rm -I ./config.file
+
+function read_config_file ()
+{
+	echo '***start of function read_config_file ***'
+	cat ./config.file
+	readarray -t read_array < ./config.file
+	declare -Ag config_array
+	declare -i line=0
+	while ((line < "${#read_array[@]}"))
+	do
+		echo 'first character on line' $line "${read_array[line]:0:1}"
+		
+		for var in backup_drive_label camera_name camera_dir working_dir backup_dir image_types
+			do
+				[[ ${read_array[line]%=*} = $var ]] && score=1
+				echo ${read_array[line]%=*} 'compare' $var
+				echo 'score is' $score
+			done
+		echo 'score is' $score
+		[[ $score != 1 ]] && echo not a valid config file && exit	
+		
+		if [[ "${read_array[line]:0:1}" = "#" ]] || [[ "${read_array[line]:0:1}" = "" ]]
+			then
+				echo do nothing
+			else
+				echo 'not a # or space on line' $line
+				echo 'key is' ${read_array[line]%=*}
+				echo 'value is' ${read_array[line]#*=}
+				config_array[${read_array[line]%=*}]=${read_array[line]#*=}
+		fi
+		((line++))
+	done
+	declare -p read_array
+	echo "number of elements:" "${#read_array[@]}"$'\n'"list of elements:" "${read_array[@]}"
+	declare -p config_array
+	echo "number of elements:" "${#config_array[@]}"$'\n'"keys:" "${!config_array[@]}"$'\n'"values:" "${config_array[@]}"
+	echo '***end of function read_config_file ***'
+}
+
+
+function check_config_file ()
+{
+	echo "creating config.file"
+	[[ ! -a config.file ]] && echo "backup_drive_label=Backup_Data
+camera_name=OLYMPUS_E-30
+camera_dir=/DCIM/100OLYMP/
+working_dir=/home/My Home/My Pictures/
+backup_dir=/My Pictures/
+image_types=(png ORF JPG jpg)
+exiftool_date_pattern=%Y/raw images/%m %b/%Y_%m_%d/
+
+#**********************************************
+# This is the configuration for photodownloader
+# Do not change keys (the section prior to '=')
+#**********************************************" > ./config.file
+}
+
+echo 'outside the function but before it is called config_array[image types] ='
+echo "${config_array[image_types]}"
+
+check_config_file
+read_config_file
+
+echo 'outside the function after it is called config_array[image types] ='
+echo "${config_array[image_types]}"
+declare -p config_array
+
+unset read_array config_array line
+# set +v
+
+echo "----------------------------------------"
 
 # read -a array	assign the words read to sequential indices of the array variable ARRAY, starting at zero
 #      -d delim continue until the first character of DELIM is read, rather than newline
