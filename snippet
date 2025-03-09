@@ -443,19 +443,20 @@ function read_config_file ()
 	readarray -t read_array < ./config.file
 	declare -Ag config_array
 	declare -ig line=0
-	allowable_keys="backup_drive_label | camera_name | camera_dir | working_dir | backup_dir | image_types | exiftool_date_pattern"
 
 	echo 'readarray elements' "${read_array[@]}"
-	echo 'allowed keys' "${allowable_keys}"
 
 	for item in "${read_array[@]}"
 	do
 		echo 'item is' "${item}"
 		echo 'truncated item is' "${item%=*}"
 		case "${item%=*}" in
-			backup_drive_label | camera_name | camera_dir | working_dir | backup_dir | image_types | exiftool_date_pattern ) config_array[${item%=*}]=${item#*=};;
-			"#"* | "" ) echo 'a space or comment';;
-			* ) echo 'not a valid key';;
+			backup_drive_label | camera_name | camera_dir | working_dir | backup_dir | image_types | exiftool_date_pattern )
+				config_array[${item%=*}]=${item#*=};;
+			"#"* | "" )
+				echo 'a space or comment';;
+			* )
+				echo 'not a valid key';;
 		esac
 	done
 	
@@ -497,7 +498,6 @@ declare -p config_array
 unset read_array config_array line
 # set +v
 
-echo "----------------------------------------"
 
 # ==================================================================
 #
